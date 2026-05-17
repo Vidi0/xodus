@@ -1,18 +1,22 @@
 use crate::models::clep::*;
 use std::mem::{transmute, zeroed};
 
-pub fn get_license_challenge(smbios: [u8; 256], disk_serial: [u8; 64]) -> ([u8; 2048], [u8; 2048]) {
+pub fn get_license_challenge(
+    smbios: &[u8; 256],
+    disk_serial: &[u8; 64],
+) -> ([u8; 2048], [u8; 2048]) {
     let mut clepv2: ClepV2 = unsafe { zeroed() };
     clepv2.version = 2;
     clepv2.always_0 = 0;
     clepv2.always_1 = true;
-    clepv2.smbios.copy_from_slice(&smbios);
-    clepv2.disk_serial.copy_from_slice(&disk_serial);
+    clepv2.smbios = *smbios;
+    clepv2.disk_serial = *disk_serial;
+
     let mut clepv4: ClepV4 = unsafe { zeroed() };
     clepv4.version = 4;
     clepv4.debugger_not_present = 1;
-    clepv4.smbios = smbios;
-    clepv4.disk_serial = disk_serial;
+    clepv4.smbios = *smbios;
+    clepv4.disk_serial = *disk_serial;
 
     let mut obfuscatedv2 = unsafe { transmute(clepv2) };
     let mut obfuscatedv4 = unsafe { transmute(clepv4) };
@@ -136,6 +140,6 @@ mod tests {
         let disk_serial = [0; 64];
         smbios[..data.len()].copy_from_slice(&data);
 
-        get_license_challenge(smbios, disk_serial);
+        get_license_challenge(&smbios, &disk_serial);
     }
 }
