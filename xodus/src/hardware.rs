@@ -28,7 +28,7 @@ pub fn probe_provision_components() -> Vec<Component> {
         .iter_mut()
         .zip(smbios.iter())
         .for_each(|(place, data)| *place = *data);
-    let (clepv2, clepv4) = clep::challenge::get_license_challange(smbios_buf, drive_buf);
+    let (clepv2, clepv4) = clep::challenge::get_license_challenge(smbios_buf, drive_buf);
 
     components.push(Component::new(4113, "AA==".to_string()));
     components.push(Component::error(4101));
