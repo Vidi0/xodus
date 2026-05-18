@@ -1,6 +1,9 @@
+use zerocopy::{FromZeros, IntoBytes};
+
+#[derive(FromZeros, IntoBytes)]
 #[repr(C, packed)]
 pub struct ClepV2 {
-    pub version: u32,
+    version: u32,
     pub smbios: [u8; 256],
     pub disk_serial: [u8; 64],
     pub always_0: u32,
@@ -11,9 +14,18 @@ pub struct ClepV2 {
     pub reserved: [u8; 639],
 }
 
+impl ClepV2 {
+    pub fn new() -> Self {
+        let mut clep = Self::new_zeroed();
+        clep.version = 2;
+        clep
+    }
+}
+
+#[derive(FromZeros, IntoBytes)]
 #[repr(C, packed)]
 pub struct ClepV4 {
-    pub version: u32,
+    version: u32,
     pub smbios: [u8; 256],
     pub disk_serial: [u8; 64],
     pub tpm_status: bool,
@@ -26,4 +38,12 @@ pub struct ClepV4 {
     pub debugger_not_present: u32,
     pub escrowed_device_key: [u8; 148],
     pub reserved: [u8; 665],
+}
+
+impl ClepV4 {
+    pub fn new() -> Self {
+        let mut clep = Self::new_zeroed();
+        clep.version = 4;
+        clep
+    }
 }
