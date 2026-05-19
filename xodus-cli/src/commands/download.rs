@@ -98,7 +98,7 @@ pub async fn run(
 
     let Ok(files) = MultiSelect::new("Select files to download", package.package_files)
         .with_validator(|input: &[inquire::list_option::ListOption<&PackageFile>]| {
-            if input.len() > 0 {
+            if !input.is_empty() {
                 Ok(Validation::Valid)
             } else {
                 Ok(Validation::Invalid(
@@ -141,7 +141,7 @@ pub async fn run(
         while let Some(chunk) = stream.next().await {
             let chk = chunk.expect("Failed to stream file");
             downloaded_size += chk.len() as f64;
-            file.write(&chk).await.expect("Failed to write to file");
+            file.write_all(&chk).await.expect("Failed to write to file");
             let percent = downloaded_size / file_size * 100_f64;
             let downloaded_mib = downloaded_size / 1024_f64 / 1024_f64;
             print!("{percent:02.02}% - {downloaded_mib:05.0}MiB/{total_mib:05.0}MiB\r")

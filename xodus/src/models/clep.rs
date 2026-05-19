@@ -22,6 +22,12 @@ impl ClepV2 {
     }
 }
 
+impl Default for ClepV2 {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[derive(FromZeros, IntoBytes)]
 #[repr(C, packed)]
 pub struct ClepV4 {
@@ -45,5 +51,11 @@ impl ClepV4 {
         let mut clep = Self::new_zeroed();
         clep.version = 4;
         clep
+    }
+}
+
+impl Default for ClepV4 {
+    fn default() -> Self {
+        Self::new()
     }
 }

@@ -44,8 +44,8 @@ impl Envelope {
             wsa: "http://www.w3.org/2005/08/addressing".to_owned(),
             wssc: "http://schemas.xmlsoap.org/ws/2005/02/sc".to_owned(),
             wst: "http://schemas.xmlsoap.org/ws/2005/02/trust".to_owned(),
-            header: header,
-            body: body,
+            header,
+            body,
         }
     }
 }

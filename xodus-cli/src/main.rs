@@ -2,10 +2,9 @@ use clap::{Parser, Subcommand};
 mod commands;
 mod webview;
 
-use xodus::{hardware, licensing};
 use xodus::xal::TokenStore;
 use xodus::xal::client_params::CLIENT_WINDOWS;
-use xodus::xal::oauth2::TokenResponse;
+use xodus::{hardware, licensing};
 
 #[derive(Subcommand)]
 enum SubCommand {
@@ -43,11 +42,14 @@ async fn main() {
 
     match args.command {
         SubCommand::Download {
-            product,
-            market,
-            dry_run,
+            product: _,
+            market: _,
+            dry_run: _,
         } => (), //commands::download::run(&client, &ts, product, market, dry_run).await,
-        SubCommand::License { content_id, market } => {
+        SubCommand::License {
+            content_id: _,
+            market: _,
+        } => {
             commands::license::run(&client).await;
         }
     }

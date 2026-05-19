@@ -63,7 +63,7 @@ pub fn probe_provision_components() -> Vec<Component> {
     components
 }
 
-fn parse_smbios(smbios: &[u8]) -> (&[u8], &[u8], &[u8], [u8;16]){
+fn parse_smbios(smbios: &[u8]) -> (&[u8], &[u8], &[u8], [u8; 16]) {
     let ttype = smbios[0];
     let length = smbios[1];
     let handle = u16::from_le_bytes(smbios[2..4].try_into().unwrap());
@@ -93,7 +93,7 @@ fn parse_smbios(smbios: &[u8]) -> (&[u8], &[u8], &[u8], [u8;16]){
     }
 
     let manufacturer = strings[manufacturer as usize];
-    let version= strings[version as usize];
+    let version = strings[version as usize];
     let serial = strings[serial as usize];
 
     (manufacturer, version, serial, uuid)

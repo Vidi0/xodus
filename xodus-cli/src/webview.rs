@@ -1,6 +1,3 @@
-use std::time::Duration;
-
-use async_trait::async_trait;
 use tao::{
     dpi::{LogicalSize, Size},
     event::{Event, WindowEvent},
@@ -12,7 +9,6 @@ use wry::{
     PageLoadEvent, WebViewBuilder,
     http::{HeaderMap, HeaderValue},
 };
-use xodus::xal::AuthPromptCallback;
 
 enum CustomEvent {
     Finish(String),
@@ -33,7 +29,7 @@ impl WebviewCallbackHandler {
         let proxy = event_loop.create_proxy();
 
         let clientid = "000000004424da1f".to_string();
-        let market = "pl-PL".to_string();
+        let _market = "pl-PL".to_string();
         let uid = uuid::Uuid::new_v4();
         let url = format!(
             "https://login.live.com/ppsecure/InlineLogin.srf?id=80604&scid=3&mkt=en-US&Platform=Windows10&clientid={clientid}"
@@ -71,11 +67,11 @@ impl WebviewCallbackHandler {
             HeaderValue::from_str(&format!("api-version=2.0&uaid={uid}&clientid={clientid}"))
                 .unwrap(),
         );
-        let headermap: HeaderMap = headers.try_into().unwrap();
+
         let builder = WebViewBuilder::new()
             .with_url(url)
             .with_user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64; MSAppHost/3.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.102 Safari/537.36 Edge/18.26100")
-            .with_headers(headermap)
+            .with_headers(headers)
             .with_on_page_load_handler(move |event, url| {
                 if matches!(event, PageLoadEvent::Finished)
                     && url.starts_with("https://login.live.com/ppsecure/post.srf")
@@ -113,7 +109,7 @@ impl WebviewCallbackHandler {
                 _ => (),
             }
         });
-        
+
         let cookies = webview.cookies();
 
         println!("{final_url:#?}");
