@@ -1,3 +1,4 @@
+<p align="center"><img width="128" src="assets/Icon//Icon.ico" /></p>
 <h1 align="center">Xodus</h1>
 <p align="center">The great gaming migration to Linux</p>
 
@@ -7,6 +8,21 @@
 
 ## Current state of the project
 
-Right now the project is a proof of concept used to obtain msixvc files from MS Store that will be further researched towards being able to decrypt and unpack them under Linux.
+These parts are still scattered arround and are not functioning as a whole.
 
-At this moment the project does only authorization
+
+- [x] Device registration 
+- [x] Device token exchange
+- [x] License parsing
+- [x] Device key deriviation
+- [ ] User TokenBroker auth
+- [ ] User token exchange
+- [ ] Licensing flow
+- [ ] MSIXVC support
+- [ ] Downloading and decryption
+- [ ] On-demand .exe decryption
+- [ ] MSIXVC2 support
+
+
+## Special Thanks
+- [CikExtractor](https://github.com/LukeFZ/CikExtractor) by LukeFZ
