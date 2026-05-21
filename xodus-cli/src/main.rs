@@ -1,11 +1,12 @@
 use clap::{Parser, Subcommand};
 mod commands;
+mod device;
 mod webview;
 
-use xodus::{hardware, licensing};
 use xodus::xal::TokenStore;
 use xodus::xal::client_params::CLIENT_WINDOWS;
 use xodus::xal::oauth2::TokenResponse;
+use xodus::{hardware, licensing};
 
 #[derive(Subcommand)]
 enum SubCommand {
@@ -39,6 +40,9 @@ async fn main() {
         .build()
         .unwrap();
 
+    xodus::secrets::init_secrets();
+    device::ensure_device_credentials(&client).await;
+
     let args = CliArgs::parse();
 
     match args.command {
@@ -51,4 +55,6 @@ async fn main() {
             commands::license::run(&client).await;
         }
     }
+
+    xodus::secrets::destroy_secrets();
 }

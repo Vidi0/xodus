@@ -4,3 +4,4 @@ pub mod displaycatalog;
 pub mod licensing;
 pub mod packagespc;
 pub mod soap;
+pub mod secrets;

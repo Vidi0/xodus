@@ -4,46 +4,46 @@ use serde::{Deserialize, Serialize};
 #[serde(rename = "s:Envelope")]
 pub struct Envelope {
     #[serde(rename = "@xmlns:s")]
-    pub s: String,
+    pub s: Option<String>,
     #[serde(rename = "@xmlns:ps")]
-    pub ps: String,
+    pub ps: Option<String>,
     #[serde(rename = "@xmlns:wsse")]
-    pub wsse: String,
+    pub wsse: Option<String>,
     #[serde(rename = "@xmlns:saml")]
-    pub saml: String,
+    pub saml: Option<String>,
     #[serde(rename = "@xmlns:wsp")]
-    pub wsp: String,
+    pub wsp: Option<String>,
     #[serde(rename = "@xmlns:wsu")]
-    pub wsu: String,
+    pub wsu: Option<String>,
     #[serde(rename = "@xmlns:wsa")]
-    pub wsa: String,
+    pub wsa: Option<String>,
     #[serde(rename = "@xmlns:wssc")]
-    pub wssc: String,
+    pub wssc: Option<String>,
     #[serde(rename = "@xmlns:wst")]
-    pub wst: String,
+    pub wst: Option<String>,
 
-    #[serde(rename = "s:Header")]
+    #[serde(rename = "s:Header", alias = "Header")]
     pub header: Header,
-    #[serde(rename = "s:Body")]
+    #[serde(rename = "s:Body", alias = "Body")]
     pub body: Body,
 }
 
 impl Envelope {
     pub fn new(header: Header, body: Body) -> Self {
         Self {
-            s: "http://www.w3.org/2003/05/soap-envelope".to_owned(),
-            ps: "http://schemas.microsoft.com/Passport/SoapServices/PPCRL".to_owned(),
+            s: Some("http://www.w3.org/2003/05/soap-envelope".to_owned()),
+            ps: Some("http://schemas.microsoft.com/Passport/SoapServices/PPCRL".to_owned()),
             wsse:
-                "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd"
-                    .to_owned(),
-            saml: "urn:oasis:names:tc:SAML:1.0:assertion".to_owned(),
-            wsp: "http://schemas.xmlsoap.org/ws/2004/09/policy".to_owned(),
+                Some("http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd"
+                    .to_owned()),
+            saml: Some("urn:oasis:names:tc:SAML:1.0:assertion".to_owned()),
+            wsp: Some("http://schemas.xmlsoap.org/ws/2004/09/policy".to_owned()),
             wsu:
-                "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd"
-                    .to_owned(),
-            wsa: "http://www.w3.org/2005/08/addressing".to_owned(),
-            wssc: "http://schemas.xmlsoap.org/ws/2005/02/sc".to_owned(),
-            wst: "http://schemas.xmlsoap.org/ws/2005/02/trust".to_owned(),
+                Some("http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd"
+                    .to_owned()),
+            wsa: Some("http://www.w3.org/2005/08/addressing".to_owned()),
+            wssc: Some("http://schemas.xmlsoap.org/ws/2005/02/sc".to_owned()),
+            wst: Some("http://schemas.xmlsoap.org/ws/2005/02/trust".to_owned()),
             header: header,
             body: body,
         }
@@ -52,15 +52,15 @@ impl Envelope {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Header {
-    #[serde(rename = "wsa:Action")]
+    #[serde(rename = "wsa:Action", alias = "Action")]
     pub action: MustUnderstandValue,
-    #[serde(rename = "wsa:To")]
+    #[serde(rename = "wsa:To", alias = "To")]
     pub to: MustUnderstandValue,
     #[serde(rename = "wsa:MessageID")]
-    pub message_id: String,
+    pub message_id: Option<String>,
     #[serde(rename = "ps:AuthInfo")]
-    pub auth_info: AuthInfo,
-    #[serde(rename = "wsse:Security")]
+    pub auth_info: Option<AuthInfo>,
+    #[serde(rename = "wsse:Security", alias = "Security")]
     pub security: Security,
 }
 
@@ -69,15 +69,15 @@ impl Header {
         let now = chrono::Utc::now();
         Self {
             action: MustUnderstandValue {
-                must_understand: "1".to_owned(),
+                must_understand: Some("1".to_owned()),
                 value: "http://schemas.xmlsoap.org/ws/2005/02/trust/RST/Issue".to_owned(),
             },
             to: MustUnderstandValue {
-                must_understand: "1".to_owned(),
+                must_understand: Some("1".to_owned()),
                 value: "https://login.live.com:443/RST2.srf".to_owned(),
             },
-            message_id: now.timestamp().to_string(),
-            auth_info: AuthInfo::default(),
+            message_id: Some(now.timestamp().to_string()),
+            auth_info: Some(AuthInfo::default()),
             security: Security {
                 username_token: None,
                 encrypted_data: None,
@@ -105,14 +105,14 @@ pub enum BodyContent {
     #[serde(rename = "ps:RequestMultipleSecurityTokens")]
     RequestMultipleSecurityTokens(RequestMultipleSecurityTokens),
 
-    #[serde(rename = "wst:RequestSecurityTokenResponse")]
+    #[serde(rename = "wst:RequestSecurityTokenResponse", alias = "RequestSecurityTokenResponse")]
     RequestSecurityTokenResponse(RequestSecurityTokenResponse),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MustUnderstandValue {
     #[serde(rename = "@s:mustUnderstand")]
-    pub must_understand: String,
+    pub must_understand: Option<String>,
     #[serde(rename = "$value")]
     pub value: String,
 }
@@ -171,7 +171,7 @@ pub struct Security {
     pub username_token: Option<UsernameToken>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub encrypted_data: Option<EncryptedData>,
-    #[serde(rename = "wsu:Timestamp")]
+    #[serde(rename = "wsu:Timestamp", alias = "Timestamp")]
     pub timestamp: Timestamp,
 }
 
@@ -196,6 +196,7 @@ impl UsernameToken {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct EncryptedData {
     #[serde(rename = "@Id")]
     pub id: String,
@@ -205,7 +206,7 @@ pub struct EncryptedData {
     pub el_type: String,
 
     pub encryption_method: EncryptionMethod,
-    #[serde(rename = "ds:KeyInfo")]
+    #[serde(rename = "ds:KeyInfo", alias = "KeyInfo")]
     pub key_info: KeyInfo,
     pub cipher_data: CipherData,
 }
@@ -228,9 +229,9 @@ impl EncryptedData {
 pub struct Timestamp {
     #[serde(rename = "@wsu:Id")]
     pub id: Option<String>,
-    #[serde(rename = "wsu:Created")]
+    #[serde(rename = "wsu:Created", alias = "Created")]
     pub created: String,
-    #[serde(rename = "wsu:Expires")]
+    #[serde(rename = "wsu:Expires", alias = "Expires")]
     pub expires: String,
 }
 
@@ -251,26 +252,27 @@ pub struct RequestSecurityToken {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RequestSecurityTokenResponse {
-    #[serde(rename = "wst:TokenType")]
+    #[serde(rename = "wst:TokenType", alias = "TokenType")]
     pub token_type: String,
-    #[serde(rename = "wsp:AppliesTo")]
+    #[serde(rename = "wsp:AppliesTo", alias = "AppliesTo")]
     pub applies_to: AppliesTo,
-    #[serde(rename = "wst:Lifetime")]
+    #[serde(rename = "wst:Lifetime", alias = "Lifetime")]
     pub lifetime: Timestamp,
-    #[serde(rename = "wst:RequestedSecurityToken")]
+    #[serde(rename = "wst:RequestedSecurityToken", alias = "RequestedSecurityToken")]
     pub requested_security_token: RequestedSecurityToken,
-    #[serde(rename = "wst:RequestedProofToken")]
+    #[serde(rename = "wst:RequestedProofToken", alias = "RequestedProofToken")]
     pub requested_proof_token: RequestedProofToken,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct RequestedSecurityToken {
     pub encrypted_data: EncryptedData,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RequestedProofToken {
-    #[serde(rename = "wst:BinarySecret")]
+    #[serde(rename = "wst:BinarySecret", alias = "BinarySecret")]
     pub binary_secret: String,
 }
 
@@ -285,13 +287,13 @@ pub struct RequestMultipleSecurityTokens {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppliesTo {
-    #[serde(rename = "wsa:EndpointReference")]
+    #[serde(rename = "wsa:EndpointReference", alias = "EndpointReference")]
     pub endpoint_reference: EndpointReference,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EndpointReference {
-    #[serde(rename = "wsa:Address")]
+    #[serde(rename = "wsa:Address", alias = "Address")]
     pub address: String,
 }
 
@@ -304,9 +306,16 @@ pub struct PolicyReference {
 }
 
 impl PolicyReference {
-    pub fn new() -> Self {
+    pub fn token_broker() -> Self {
         Self {
             uri: "TOKEN_BROKER".to_string(),
+            val: String::default(),
+        }
+    }
+
+    pub fn mbi_ssl() -> Self {
+        Self {
+            uri: "mbi_ssl".to_string(),
             val: String::default(),
         }
     }
@@ -317,14 +326,14 @@ pub struct EncryptionMethod {
     #[serde(rename = "@Algorithm")]
     pub algorithm: String,
     #[serde(rename = "$value")]
-    pub val: String,
+    pub val: Option<String>,
 }
 
 impl Default for EncryptionMethod {
     fn default() -> Self {
         Self {
             algorithm: "http://www.w3.org/2001/04/xmlenc#tripledes-cbc".to_string(),
-            val: String::default(),
+            val: None
         }
     }
 }
@@ -333,7 +342,7 @@ impl Default for EncryptionMethod {
 pub struct KeyInfo {
     #[serde(rename = "@xmlns:ds")]
     pub ds: String,
-    #[serde(rename = "ds:KeyName")]
+    #[serde(rename = "ds:KeyName", alias = "KeyName")]
     pub key_name: String,
 }
 
@@ -347,6 +356,7 @@ impl KeyInfo {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct CipherData {
     pub cipher_value: String,
 }

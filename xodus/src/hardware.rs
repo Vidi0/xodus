@@ -2,7 +2,7 @@
 
 use crate::{clep, models::devicecredential::Component};
 use base64::prelude::*;
-use std::process::{Command, ExitStatus, Stdio};
+use std::process::{Command, Stdio};
 
 pub fn probe_provision_components() -> Vec<Component> {
     let mut components = Vec::with_capacity(16);
@@ -16,7 +16,7 @@ pub fn probe_provision_components() -> Vec<Component> {
         panic!("Unable to probe SMBIOS data");
     }
     let smbios = output.stdout;
-    let (_manufacturer, version, serial, uuid) = parse_smbios(&smbios);
+    let (version, serial, uuid) = parse_smbios(&smbios);
     let drive_serial = BASE64_STANDARD.decode("AA==").unwrap();
     let mut smbios_buf = [0; 256];
     let mut drive_buf = [0; 64];
@@ -63,13 +63,9 @@ pub fn probe_provision_components() -> Vec<Component> {
     components
 }
 
-fn parse_smbios(smbios: &[u8]) -> (&[u8], &[u8], &[u8], [u8;16]){
-    let ttype = smbios[0];
+fn parse_smbios(smbios: &[u8]) -> (&[u8], &[u8], [u8; 16]) {
     let length = smbios[1];
-    let handle = u16::from_le_bytes(smbios[2..4].try_into().unwrap());
 
-    let manufacturer = smbios[4];
-    let product = smbios[5];
     let version = smbios[6];
     let serial = smbios[7];
     let uuid: [u8; 16] = smbios[8..24].try_into().unwrap();
@@ -92,9 +88,8 @@ fn parse_smbios(smbios: &[u8]) -> (&[u8], &[u8], &[u8], [u8;16]){
         }
     }
 
-    let manufacturer = strings[manufacturer as usize];
-    let version= strings[version as usize];
+    let version = strings[version as usize];
     let serial = strings[serial as usize];
 
-    (manufacturer, version, serial, uuid)
+    (version, serial, uuid)
 }

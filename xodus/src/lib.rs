@@ -4,6 +4,7 @@ pub mod clep;
 pub mod hardware;
 pub mod licensing;
 pub mod models;
+pub mod secrets;
 
 pub const XBOX_LIVE_PACKAGES_PC: &str = "https://packagespc.xboxlive.com";
 
