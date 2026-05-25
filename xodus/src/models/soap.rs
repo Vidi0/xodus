@@ -105,7 +105,10 @@ pub enum BodyContent {
     #[serde(rename = "ps:RequestMultipleSecurityTokens")]
     RequestMultipleSecurityTokens(RequestMultipleSecurityTokens),
 
-    #[serde(rename = "wst:RequestSecurityTokenResponse", alias = "RequestSecurityTokenResponse")]
+    #[serde(
+        rename = "wst:RequestSecurityTokenResponse",
+        alias = "RequestSecurityTokenResponse"
+    )]
     RequestSecurityTokenResponse(RequestSecurityTokenResponse),
 }
 
@@ -258,7 +261,10 @@ pub struct RequestSecurityTokenResponse {
     pub applies_to: AppliesTo,
     #[serde(rename = "wst:Lifetime", alias = "Lifetime")]
     pub lifetime: Timestamp,
-    #[serde(rename = "wst:RequestedSecurityToken", alias = "RequestedSecurityToken")]
+    #[serde(
+        rename = "wst:RequestedSecurityToken",
+        alias = "RequestedSecurityToken"
+    )]
     pub requested_security_token: RequestedSecurityToken,
     #[serde(rename = "wst:RequestedProofToken", alias = "RequestedProofToken")]
     pub requested_proof_token: RequestedProofToken,
@@ -333,7 +339,7 @@ impl Default for EncryptionMethod {
     fn default() -> Self {
         Self {
             algorithm: "http://www.w3.org/2001/04/xmlenc#tripledes-cbc".to_string(),
-            val: None
+            val: None,
         }
     }
 }

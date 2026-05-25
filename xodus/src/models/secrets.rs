@@ -17,5 +17,5 @@ pub struct Token {
     pub key_name: String,
     pub cipher_value: String,
     pub binary_secret: String,
-    pub lifetime: Timestamp
+    pub lifetime: Timestamp,
 }

@@ -68,7 +68,7 @@ pub async fn exchange_device_token(
     token: String,
     hosting_app: String,
     scope: String,
-    policy: Option<soap::PolicyReference>
+    policy: Option<soap::PolicyReference>,
 ) -> reqwest::Result<soap::Envelope> {
     let mut header = soap::Header::new();
     header

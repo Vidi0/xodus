@@ -113,7 +113,7 @@ impl WebviewCallbackHandler {
                 _ => (),
             }
         });
-        
+
         let cookies = webview.cookies();
 
         println!("{final_url:#?}");
