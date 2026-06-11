@@ -37,18 +37,17 @@ async fn main() {
         .connection_verbose(true)
         .build()
         .unwrap();
+    let args = CliArgs::parse();
 
     xodus::secrets::init_secrets();
     device::ensure_device_credentials(&client).await;
-
-    let args = CliArgs::parse();
 
     match args.command {
         SubCommand::Download {
             product,
             market,
             dry_run,
-        } => (), //commands::download::run(&client, &ts, product, market, dry_run).await,
+        } => (),//commands::download::run(&client, product, market, dry_run).await,
         SubCommand::License { content_id, market } => {
             commands::license::run(&client, content_id, market.unwrap_or("en-US".to_string()))
                 .await;

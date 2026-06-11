@@ -4,10 +4,15 @@ use xodus::models::{secrets, soap};
 
 const CLIENT_ID: &str = "000000004424da1f";
 const LOGIN_MARKET: &str = "en-US";
-const USER_AUTH_SCOPE: &str = "scope=service::user.auth.xboxlive.com::MBI_SSL&amp;api-version=2.0";
+const USER_AUTH_SCOPE: &str = "scope=service::user.auth.xboxlive.com::MBI_SSL&api-version=2.0";
 
 pub async fn run(client: &reqwest::Client) {
-    let handler = LoginHandler::new(client.clone(), device::get_device_token().unwrap());
+    let token = device::get_device_token().unwrap();
+    let secrets::Token::Legacy(token) = token else {
+        eprintln!("Invalid STS token");
+        return;
+    };
+    let handler = LoginHandler::new(client.clone(), token);
     let output = webview::run_sessions(handler)
         .expect("failed to login")
         .flatten();

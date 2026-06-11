@@ -1,8 +1,11 @@
+use std::collections::HashMap;
+
 use xodus::{
     hardware,
     licensing::utils::generate_string,
     models::{
         devicecredential::{Authentication, ClientInfo, DeviceAddRequest, DeviceInfo},
+        secrets::{Token, TokenStore},
         soap::BodyContent,
     },
 };
@@ -56,10 +59,18 @@ pub async fn ensure_device_credentials(client: &reqwest::Client) {
                 .expect("Failed to auth device");
 
         if let BodyContent::RequestSecurityTokenResponse(resp) = tokens.body.body {
+            let key_name = resp
+                .requested_security_token
+                .encrypted_data
+                .as_ref()
+                .unwrap()
+                .key_info
+                .key_name
+                .as_ref()
+                .unwrap();
+            let key_name = key_name.clone();
             let token: xodus::models::secrets::Token = resp.into();
-            let entry = xodus::secrets::get_entry("device-STS").unwrap();
-            let json = serde_json::to_string(&token).unwrap();
-            entry.set_secret(json.as_bytes()).unwrap();
+            save_token(key_name, token);
         }
     }
 }
@@ -71,9 +82,35 @@ pub fn get_dev_license() -> Result<xodus::models::secrets::Device, Box<dyn std::
     Ok(dev)
 }
 
-pub fn get_device_token() -> Result<xodus::models::secrets::LegacyToken, Box<dyn std::error::Error>> {
-    let device_entry = xodus::secrets::get_entry("device-STS")?;
-    let secret = device_entry.get_secret()?;
-    let t = serde_json::from_slice::<xodus::models::secrets::LegacyToken>(&secret.as_slice())?;
-    Ok(t)
+pub fn get_device_token() -> Result<xodus::models::secrets::Token, Box<dyn std::error::Error>> {
+    get_token("http://Passport.NET/STS".to_string()).ok_or("Error".into())
+}
+
+pub fn save_token(address: String, token: Token) {
+    let entry = xodus::secrets::get_entry("device-tokens").unwrap();
+    let passwd = entry.get_password().unwrap_or_default();
+
+    let mut tokens = if !passwd.is_empty() {
+        let tokens = serde_json::from_str::<TokenStore>(&passwd).unwrap();
+        tokens.tokens
+    } else {
+        HashMap::new()
+    };
+    tokens.insert(address, token);
+    let tokens = TokenStore { tokens };
+    let tokens_str = serde_json::to_string(&tokens).unwrap();
+    entry.set_password(&tokens_str).unwrap();
+}
+
+pub fn get_token(address: String) -> Option<Token> {
+    let entry = xodus::secrets::get_entry("device-tokens").unwrap();
+    let passwd = entry.get_password().unwrap_or_default();
+
+    let tokens = if !passwd.is_empty() {
+        let tokens = serde_json::from_str::<TokenStore>(&passwd).unwrap();
+        tokens.tokens
+    } else {
+        HashMap::new()
+    };
+    tokens.get(&address).cloned()
 }

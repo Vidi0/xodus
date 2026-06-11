@@ -18,8 +18,9 @@ These parts are still scattered arround and are not functioning as a whole.
 - [x] User TokenBroker auth
 - [x] User token exchange
 - [x] Licensing flow
+- [ ] Xbox auth and MSIXVC downloads
 - [ ] MSIXVC support
-- [ ] Downloading and decryption
+- [ ] Decryption
 - [ ] On-demand .exe decryption
 - [ ] MSIXVC2 support
 

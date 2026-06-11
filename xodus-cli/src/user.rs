@@ -35,7 +35,7 @@ pub fn get_token(address: String) -> Option<Token> {
     let entry = xodus::secrets::get_entry("user-tokens").unwrap();
     let passwd = entry.get_password().unwrap_or_default();
 
-    let mut tokens = if !passwd.is_empty() {
+    let tokens = if !passwd.is_empty() {
         let tokens = serde_json::from_str::<TokenStore>(&passwd).unwrap();
         tokens.tokens
     } else {

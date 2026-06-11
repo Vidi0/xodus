@@ -6,12 +6,17 @@ use xodus::{
 
 pub async fn run(client: &reqwest::Client, content_id: String, market: String) {
     let dev_token = device::get_device_token().unwrap();
+    let Token::Legacy(dev_token) = dev_token else {
+        eprintln!("Invalid STS token");
+        return;
+    };
     let user = user::get_user().unwrap();
     let user_token = user::get_token("http://Passport.NET/STS".to_string()).unwrap();
     let Token::Legacy(legacy) = user_token else {
         eprintln!("Unspported user token");
         return;
     };
+
     let secret = dev_token.binary_secret.unwrap();
 
     let ms_device_token = xodus::api::live::exchange_device_token(
@@ -86,9 +91,9 @@ pub async fn run(client: &reqwest::Client, content_id: String, market: String) {
     let device_license = parse_license(dev_license.splicense);
     let key = derive_device_key(&device_license.encrypted_device_key);
     let key: [u8; 16] = key.try_into().expect("Key too big");
+    println!("{game_splicense:?}");
     for (uuid, content_key) in game_splicense.content_keys {
-        let unpacked = unpack_key(&key, content_key).expect("failed to unpack");
+        let _unpacked = unpack_key(&key, content_key).expect("failed to unpack");
         println!("{uuid:?} decrypted");
     }
-
 }
