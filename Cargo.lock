@@ -49,6 +49,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "aes-keywrap"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "10b6f24a1f796bc46415a1d0d18dc0a8203ccba088acf5def3291c4f61225522"
+dependencies = [
+ "aes 0.9.0",
+ "byteorder",
+]
+
+[[package]]
 name = "aes-kw"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -495,6 +505,12 @@ name = "bumpalo"
 version = "3.20.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5d20789868f4b01b2f2caec9f5c4e0213b41e3e5702a50157d699ae31ced2fcb"
+
+[[package]]
+name = "byteorder"
+version = "1.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1fd0f2584146f6f2ef48085050886acf353beff7305ebd1ae69500e27c67f64b"
 
 [[package]]
 name = "bytes"
@@ -5688,6 +5704,7 @@ name = "xodus"
 version = "0.1.0"
 dependencies = [
  "aes 0.9.0",
+ "aes-keywrap",
  "async-trait",
  "base64 0.22.1",
  "bergshamra",

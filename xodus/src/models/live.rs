@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::models::soap;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DAProperty {
     #[serde(rename = "sDAToken")]
     pub da_token: String,
@@ -16,6 +16,8 @@ pub struct DAProperty {
     pub sts_inline_flow_token: String,
     #[serde(rename = "sSigninName")]
     pub username: String,
+    #[serde(rename = "K")]
+    pub puid: String
 }
 
 #[derive(Deserialize, Debug)]

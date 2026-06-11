@@ -1,36 +1,60 @@
-use crate::{device, webview};
+use crate::{device, user, webview};
 use xodus::models::live::{DAProperty, ExchangeUserTokenOutcome};
-use xodus::models::soap::PolicyReference;
+use xodus::models::{secrets, soap};
 
 const CLIENT_ID: &str = "000000004424da1f";
-const LOGIN_MARKET: &str = "pl-PL";
+const LOGIN_MARKET: &str = "en-US";
 const USER_AUTH_SCOPE: &str = "scope=service::user.auth.xboxlive.com::MBI_SSL&amp;api-version=2.0";
 
 pub async fn run(client: &reqwest::Client) {
     let handler = LoginHandler::new(client.clone(), device::get_device_token().unwrap());
-    webview::run_sessions(handler).expect("failed to login");
+    let output = webview::run_sessions(handler)
+        .expect("failed to login")
+        .flatten();
+    let tokens = match output {
+        Some(soap::BodyContent::RequestSecurityTokenResponseCollection(collection)) => {
+            collection.security_tokens
+        }
+        Some(soap::BodyContent::RequestSecurityTokenResponse(token)) => vec![token],
+        None => {
+            eprintln!("Didn't log in");
+            vec![]
+        }
+        _ => unreachable!(),
+    };
+
+    for token in tokens {
+        let address = token.applies_to.endpoint_reference.address.clone();
+        let token = token.into();
+        let address = if let secrets::Token::Legacy(legacy) = &token {
+            legacy.key_name.clone().unwrap_or(address)
+        } else {
+            address
+        };
+        user::save_token(address, token);
+    }
 }
 
 struct LoginHandler {
     client: reqwest::Client,
-    device: xodus::models::secrets::Token,
+    device: xodus::models::secrets::LegacyToken,
     client_id: String,
-    finish: bool
+    finish: bool,
 }
 
 impl LoginHandler {
-    fn new(client: reqwest::Client, device: xodus::models::secrets::Token) -> Self {
+    fn new(client: reqwest::Client, device: xodus::models::secrets::LegacyToken) -> Self {
         Self {
             client,
             device,
             client_id: CLIENT_ID.to_string(),
-            finish: false
+            finish: false,
         }
     }
 
     fn exchange_user_token(&self, prop: DAProperty) -> reqwest::Result<ExchangeUserTokenOutcome> {
         let client = self.client.clone();
-        let cipher_value = self.device.cipher_value.clone();
+        let device_token = self.device.token.clone();
         let binary_secret = self.device.binary_secret.clone();
         let client_id = self.client_id.clone();
 
@@ -38,7 +62,7 @@ impl LoginHandler {
             tokio::runtime::Handle::current().block_on(async move {
                 let mut scopes = vec![(
                     USER_AUTH_SCOPE.to_string(),
-                    Some(PolicyReference::token_broker()),
+                    Some(soap::PolicyReference::token_broker()),
                 )];
 
                 if self.finish {
@@ -49,9 +73,10 @@ impl LoginHandler {
                     &client,
                     prop.da_token,
                     prop.username,
-                    cipher_value,
-                    binary_secret,
+                    device_token,
+                    binary_secret.unwrap(),
                     Some(prop.sts_inline_flow_token),
+                    None,
                     client_id,
                     &scopes,
                 )
@@ -62,7 +87,7 @@ impl LoginHandler {
 }
 
 impl webview::SessionHandler for LoginHandler {
-    type Output = ();
+    type Output = Option<soap::BodyContent>;
 
     fn bootstrap(
         &mut self,
@@ -81,7 +106,7 @@ impl webview::SessionHandler for LoginHandler {
         data: DAProperty,
         runtime: &mut webview::RuntimeCommands,
     ) -> Result<webview::HandlerControl<Self::Output>, Box<dyn std::error::Error>> {
-        let exchanged = self.exchange_user_token(data)?;
+        let exchanged = self.exchange_user_token(data.clone())?;
 
         match exchanged {
             ExchangeUserTokenOutcome::Fault(pp) => {
@@ -96,12 +121,15 @@ impl webview::SessionHandler for LoginHandler {
 
                 println!("User token exchange returned a fault without inline auth");
                 runtime.close_session(session_id);
-                Ok(webview::HandlerControl::Complete(()))
+                Ok(webview::HandlerControl::Complete(None))
             }
             ExchangeUserTokenOutcome::Issued(da) => {
-                println!("{da:?}");
                 runtime.close_session(session_id);
-                Ok(webview::HandlerControl::Complete(()))
+                user::save_user(xodus::models::secrets::User {
+                    puid: data.puid,
+                    username: data.username,
+                });
+                Ok(webview::HandlerControl::Complete(Some(da)))
             }
         }
     }
@@ -111,6 +139,6 @@ impl webview::SessionHandler for LoginHandler {
         _session_id: webview::SessionId,
         _runtime: &mut webview::RuntimeCommands,
     ) -> Result<webview::HandlerControl<Self::Output>, Box<dyn std::error::Error>> {
-        Ok(webview::HandlerControl::Complete(()))
+        Ok(webview::HandlerControl::Complete(None))
     }
 }

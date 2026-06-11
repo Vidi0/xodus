@@ -43,13 +43,7 @@ pub async fn ensure_device_credentials(client: &reqwest::Client) {
             .expect("Failed to auth device");
 
         if let BodyContent::RequestSecurityTokenResponse(resp) = tokens.body.body {
-            let encrypted_data = resp.requested_security_token.encrypted_data.unwrap();
-            let token = xodus::models::secrets::Token {
-                key_name: encrypted_data.key_info.as_named().key_name,
-                cipher_value: encrypted_data.cipher_data.cipher_value,
-                binary_secret: resp.requested_proof_token.unwrap().binary_secret,
-                lifetime: resp.lifetime,
-            };
+            let token: xodus::models::secrets::Token = resp.into();
             let entry = xodus::secrets::get_entry("device-STS").unwrap();
             let json = serde_json::to_string(&token).unwrap();
             entry.set_secret(json.as_bytes()).unwrap();
@@ -62,13 +56,7 @@ pub async fn ensure_device_credentials(client: &reqwest::Client) {
                 .expect("Failed to auth device");
 
         if let BodyContent::RequestSecurityTokenResponse(resp) = tokens.body.body {
-            let encrypted_data = resp.requested_security_token.encrypted_data.unwrap();
-            let token = xodus::models::secrets::Token {
-                key_name: encrypted_data.key_info.as_named().key_name,
-                cipher_value: encrypted_data.cipher_data.cipher_value,
-                binary_secret: resp.requested_proof_token.unwrap().binary_secret,
-                lifetime: resp.lifetime,
-            };
+            let token: xodus::models::secrets::Token = resp.into();
             let entry = xodus::secrets::get_entry("device-STS").unwrap();
             let json = serde_json::to_string(&token).unwrap();
             entry.set_secret(json.as_bytes()).unwrap();
@@ -83,9 +71,9 @@ pub fn get_dev_license() -> Result<xodus::models::secrets::Device, Box<dyn std::
     Ok(dev)
 }
 
-pub fn get_device_token() -> Result<xodus::models::secrets::Token, Box<dyn std::error::Error>> {
+pub fn get_device_token() -> Result<xodus::models::secrets::LegacyToken, Box<dyn std::error::Error>> {
     let device_entry = xodus::secrets::get_entry("device-STS")?;
     let secret = device_entry.get_secret()?;
-    let t = serde_json::from_slice::<xodus::models::secrets::Token>(&secret.as_slice())?;
+    let t = serde_json::from_slice::<xodus::models::secrets::LegacyToken>(&secret.as_slice())?;
     Ok(t)
 }

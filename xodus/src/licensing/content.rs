@@ -11,6 +11,7 @@ pub async fn get_license_content(
     client: &reqwest::Client,
     device_ms_token: String,
     user_ms_token: String,
+    ticket_reference: String,
     content_id: String,
     market: String,
 ) -> reqwest::Result<String> {
@@ -34,7 +35,7 @@ pub async fn get_license_content(
                 vec![LicenseUserIdentity {
                     identity_type: "Msa".to_string(),
                     identity_value: user_ms_token,
-                    local_ticket_reference: "000CE6CA35BDEFFB".into(),
+                    local_ticket_reference: ticket_reference,
                 }])],
             ),
         })

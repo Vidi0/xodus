@@ -87,7 +87,8 @@ pub async fn exchange_device_token(
         i.hosting_app = hosting_app;
         i.sso_flags = "SsoRestr".to_string();
     });
-    header.security.encrypted_data = Some(soap::EncryptedData::devicesoftware(token));
+    let encrypted_data = quick_xml::de::from_str(&token).unwrap();
+    header.security.encrypted_data = Some(encrypted_data);
     let nonce = utils::generate_nonce();
     let secret = BASE64_STANDARD.decode(shared_secret).unwrap();
 
@@ -238,7 +239,11 @@ pub async fn exchange_device_token(
 
     match utils::decrypt_response(res_envelope, &secret).expect("Failed to decrypt") {
         (soap::BodyContent::RequestSecurityTokenResponse(res), _) => Ok(res),
-        _ => unimplemented!("Exchange token supports only singular token right now"),
+        (soap::BodyContent::RequestSecurityTokenResponseCollection(mut collection), _) => {
+            let token = collection.security_tokens.remove(0);
+            Ok(token.into())
+        }
+        (b, _) => unimplemented!("Exchange token supports only singular token right now {b:?}"),
     }
 }
 
@@ -246,9 +251,10 @@ pub async fn exchange_user_token(
     client: &reqwest::Client,
     user_token: String,
     username: String,
-    token: String,
+    device_token: String,
     shared_secret: String,
     inline_token: Option<String>,
+    inline_ux: Option<String>,
     hosting_app: String,
     scope_policies: &[(String, Option<soap::PolicyReference>)],
 ) -> reqwest::Result<ExchangeUserTokenOutcome> {
@@ -257,7 +263,7 @@ pub async fn exchange_user_token(
         i.hosting_app = hosting_app;
         i.sso_flags = "SsoRestr".to_string();
         i.license_signature_key_version = None;
-        i.inline_ux = "TokenBroker".to_string();
+        i.inline_ux = inline_ux.unwrap_or("TokenBroker".to_string());
         i.inline_ft = inline_token
     });
     header.security.username_token = Some(soap::UsernameToken::user_hint(username));
@@ -267,7 +273,7 @@ pub async fn exchange_user_token(
     header.security.binary_security_token = vec![BinarySecurityTokenReq {
         id: "DeviceDAToken".to_string(),
         value_type: "urn:liveid:device".to_owned(),
-        value: quick_xml::se::to_string(&soap::EncryptedData::devicesoftware(token)).unwrap(),
+        value: device_token,
     }];
     let mut nonce = [0u8; 32];
     _ = OsRng.try_fill_bytes(&mut nonce);

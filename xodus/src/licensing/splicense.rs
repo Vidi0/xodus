@@ -148,7 +148,6 @@ impl From<&[u8]> for SPLicense {
             let block_id: Result<BlockId, u32> = u32::from_le_bytes(buffer).try_into();
             bio.read(&mut buffer).unwrap();
             let size = u32::from_le_bytes(buffer);
-
             match block_id {
                 Ok(BlockId::LicenseId | BlockId::DeviceLicenseDeviceId) => {
                     let mut buffer = [0u8; 16];

@@ -344,7 +344,6 @@ fn create_session<T: SessionHandler>(
             .with_initialization_script("window.external = {notify: window.ipc.postMessage }")
             .with_ipc_handler(move |request| {
                 let body = request.body();
-                println!("{body:?}");
                 let payload = serde_json::from_str::<DAProperty>(body);
                 if let Ok(data) = payload {
                     if proxy_ipc
