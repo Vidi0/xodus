@@ -1,10 +1,11 @@
 use crate::{device, user};
+use tokio::{fs::OpenOptions, io::AsyncWriteExt};
 use xodus::{
     licensing::splicense::{derive_device_key, parse_license, unpack_key},
     models::{live::ExchangeUserTokenOutcome, secrets::Token, soap},
 };
 
-pub async fn run(client: &reqwest::Client, content_id: String, market: String) {
+pub async fn run(client: &reqwest::Client, content_id: String, market: String, ciks: String) {
     let dev_token = device::get_device_token().unwrap();
     let Token::Legacy(dev_token) = dev_token else {
         eprintln!("Invalid STS token");
@@ -92,8 +93,18 @@ pub async fn run(client: &reqwest::Client, content_id: String, market: String) {
     let key = derive_device_key(&device_license.encrypted_device_key);
     let key: [u8; 16] = key.try_into().expect("Key too big");
     println!("{game_splicense:?}");
+    tokio::fs::create_dir_all(&ciks).await.unwrap();
     for (uuid, content_key) in game_splicense.content_keys {
-        let _unpacked = unpack_key(&key, content_key).expect("failed to unpack");
-        println!("{uuid:?} decrypted");
+        let unpacked = unpack_key(&key, content_key).expect("failed to unpack");
+        let mut file = OpenOptions::new()
+            .create(true)
+            .write(true)
+            .open(format!("{ciks}/{uuid}.cik"))
+            .await
+            .unwrap();
+        let uuid_buf = uuid.to_bytes_le();
+        file.write(&uuid_buf).await.unwrap();
+        file.write(&unpacked).await.unwrap();
+        file.flush().await.unwrap();
     }
 }
