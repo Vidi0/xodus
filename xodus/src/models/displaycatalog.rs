@@ -174,7 +174,8 @@ pub struct Package {
     pub main_package_family_name_for_dlc: Option<String>,
     pub package_full_name: String,
     pub package_id: String,
-    pub content_id: String,
+    #[serde(default)]
+    pub content_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub key_id: Option<String>,
     pub package_rank: i32,
@@ -253,6 +254,7 @@ pub struct Availability {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub affirmation_id: Option<String>,
     pub display_rank: i32,
+    #[serde(default)]
     pub remediation_required: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub licensing_data: Option<LicensingData>,
