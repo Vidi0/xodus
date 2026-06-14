@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use std::io::{Error, ErrorKind, Read, Seek, SeekFrom, Write};
 use std::os::unix::fs::FileExt;
 use std::path::{Path, PathBuf};
@@ -9,6 +10,7 @@ use tokio::{
 };
 use zerocopy::transmute;
 
+use crate::licensing::splicense::ContentKey;
 use crate::xvd::crypt::SectionReader;
 use crate::xvd::math::{
     bytes_to_pages, calculate_hash_block_num_for_block_num, offset_to_page_number,
@@ -18,10 +20,19 @@ use crate::{
     xvd::math::page_number_to_offset,
 };
 
-#[derive(Debug)]
 struct XvdEncryptionInfo {
-    full_key: [u8; 32],
+    full_key: ContentKey,
     encrypted_sections: Vec<EncryptedSectionInfo>,
+}
+
+// The gpt crate requires the device to implement Debug,
+// but the content key must not be debuged
+impl Debug for XvdEncryptionInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("XvdEncryptionInfo")
+            .field("encrypted_sections", &self.encrypted_sections)
+            .finish_non_exhaustive() // prints ", .." to signal redacted fields
+    }
 }
 
 #[derive(Debug)]
@@ -389,7 +400,7 @@ pub fn unpack_file(
     xvd: XvdFile,
     path: String,
     destination: String,
-    full_key: [u8; 32],
+    full_key: ContentKey,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let sfile = std::fs::File::open(path)?;
     let block_size = 4096; //xvd.header.block_size;
