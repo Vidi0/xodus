@@ -3,6 +3,7 @@ use xodus::tokens::TokenManager;
 
 mod commands;
 mod license;
+mod package;
 mod webview;
 
 #[derive(Subcommand)]
@@ -29,6 +30,20 @@ enum SubCommand {
         market: Option<String>,
     },
     Login,
+    Streaming {
+        source: String,
+        destination: String,
+        #[arg(
+            long,
+            default_value_t = false,
+            help = "Attempt to skip downloading NTFS metadata to be faste while missing some files"
+        )]
+        try_skip_ntfs: bool,
+        #[arg(short, long)]
+        parallel: Option<usize>,
+        #[arg(short, long)]
+        market: Option<String>,
+    },
 }
 
 #[derive(Parser)]
@@ -86,6 +101,24 @@ async fn main() {
                 path,
                 destination,
                 market.unwrap_or("neutral".to_string()),
+            )
+            .await;
+        }
+        SubCommand::Streaming {
+            source,
+            destination,
+            try_skip_ntfs,
+            market,
+            parallel,
+        } => {
+            commands::streaming::run(
+                &client,
+                &tokens,
+                source,
+                destination,
+                try_skip_ntfs,
+                parallel,
+                market,
             )
             .await;
         }
