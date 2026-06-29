@@ -19,7 +19,8 @@ use tokio::{
 use tokio_util::io::SyncIoBridge;
 use zerocopy::IntoBytes;
 
-use crate::models::{
+use crate::models::common::*;
+use crate::models::xvd::{
     PAGE_SIZE, PAGES_PER_BLOCK, XvdSegmentMetadataHeader, XvdSegmentMetadataSegment,
     XvdUserDataHeader, XvdUserDataPackageFileEntry, XvdUserDataPackageFilesHeader,
 };
@@ -32,7 +33,7 @@ use crate::math::{
 };
 use crate::{
     math::page_number_to_offset,
-    models::{XvcInfo, XvcRegionHeader, XvcRegionId, XvdHashEntry, XvdHeader, XvdStruct},
+    models::xvd::{XvcInfo, XvcRegionHeader, XvcRegionId, XvdHashEntry, XvdHeader},
 };
 
 pub struct SyncSubstream<R> {
@@ -176,15 +177,6 @@ where
     async fn seek(&mut self, pos: SeekFrom) -> io::Result<u64> {
         AsyncSeekExt::seek(self, pos).await
     }
-}
-
-// This is a macro because the compiler can't handle const generics
-macro_rules! read_struct {
-    ($t:ty, $reader:expr) => {{
-        let mut buf = [0u8; <$t as XvdStruct>::RAW_SIZE];
-        $reader.read_exact(&mut buf).await?;
-        TryInto::<$t>::try_into(buf)
-    }};
 }
 
 struct XvdEncryptionInfo {

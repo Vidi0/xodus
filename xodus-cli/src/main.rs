@@ -8,13 +8,19 @@ mod webview;
 
 #[derive(Subcommand)]
 enum SubCommand {
+    #[command(about = "Download msixvc or xsp files fo given game")]
     Download {
         product: String,
         #[arg(short, long)]
         market: Option<String>,
-        #[arg(long, default_value_t = false)]
+        #[arg(
+            long,
+            default_value_t = false,
+            help = "Display download URLs instead of downloading"
+        )]
         dry_run: bool,
     },
+    #[command(about = "Dump CIKs for use with XvdTool")]
     License {
         #[clap(help = "Content Id of a license")]
         content_id: String,
@@ -23,6 +29,7 @@ enum SubCommand {
         #[arg(short, long)]
         market: Option<String>,
     },
+    #[command(about = "Extract locally stored msixvc file")]
     Extract {
         path: String,
         destination: String,
@@ -30,6 +37,7 @@ enum SubCommand {
         market: Option<String>,
     },
     Login,
+    #[command(about = "Download and extract the game through streaming algorithm")]
     Streaming {
         source: String,
         destination: String,
