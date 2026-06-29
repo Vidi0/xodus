@@ -35,7 +35,7 @@ impl Tweak {
     }
 }
 
-pub struct SectionReader<R> {
+pub struct SectionReader<'t, R> {
     inner: R,
     section_offset: u64,
     section_length: u64,
@@ -47,14 +47,14 @@ pub struct SectionReader<R> {
 
     // If integrity is enabled, this must contain one entry per page in the section.
     // If integrity is disabled, use page_in_section as the data unit instead.
-    data_units: Option<Vec<u32>>,
+    data_units: Option<&'t [u32]>,
 
     // simplest useful cache
     cached_page_index: Option<u64>,
     cached_page_plaintext: [u8; PAGE_SIZE],
 }
 
-impl<R: PageSource> SectionReader<R> {
+impl<'t, R: PageSource> SectionReader<'t, R> {
     pub fn new(
         inner: R,
         section_offset: u64,
@@ -62,7 +62,7 @@ impl<R: PageSource> SectionReader<R> {
         header_id: XvcRegionId,
         vduid: [u8; 8],
         full_key: [u8; 32],
-        data_units: Option<Vec<u32>>,
+        data_units: Option<&'t [u32]>,
     ) -> Self {
         let mut tweak_key = [0u8; 16];
         let mut data_key = [0u8; 16];
