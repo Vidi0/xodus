@@ -36,7 +36,7 @@ Xodus aims to bring Xbox PC games to Linux and possibly Mac devices.
 
 **Q: When can I play my Minecraft Bedrock?**  
 While Xodus is quickly maturing, there is still a lot of work to support it from Wine standpoint to provide necessary Xbox Services to games.  
-*TL;DR* soon<sup>tm</sup>
+_TL;DR_ soon<sup>tm</sup>
 
 **Q: How to get involved?**  
 Start by joining our Discord or review any open GitHub issues .
@@ -53,7 +53,7 @@ The project structure is as follows.
 .
 ├── msixvc - [rlib] common rlib crate for utilities for parsing MSIXVC and XSP files
 ├── xodus - [rlib] common rlib crate that contains core xodus functionality, API calls abstractions and utilities
-├── xodus-cli - [bin] CLI currently used for iterating over new xodus features 
+├── xodus-cli - [bin] CLI currently used for iterating over new xodus features
 └── xodus-service - [bin] service process exposing a xodus.sock for IPC communication, it takes care of and xgameruntime.dll integration.
 ```
 
@@ -69,19 +69,30 @@ The project structure is as follows.
 ### Running
 
 Building all crates in release mode
+
 ```bash
 cargo build --release --workspace
 ```
 
 Running cli in debug
+
 ```
 cargo run -- --help
 ```
 
 Running xodus-service in debug
+
 ```
 cargo run --bin xodus-service
 ```
+
+> [!WARNING]
+> For better performance when decrypting MSIXVC files, the `aes` and `ssse3` features are enabled on `x86_64`,
+> and the `aes` feature is enabled on `aarch64`. This means that the program will crash with an illegal instruction
+> error when running on a CPU which doesn't support those instructions.
+>
+> See https://en.wikipedia.org/wiki/AES_instruction_set for a list of compatible CPUs (every processor from
+> 2011 onwards should be supported).
 
 ### CLI Usage
 
@@ -92,7 +103,7 @@ Commands:
   download   Download msixvc or xsp files fo given game
   license    Dump CIKs for use with XvdTool
   extract    Extract locally stored msixvc file
-  login      
+  login
   streaming  Download and extract the game through streaming algorithm
   help       Print this message or the help of the given subcommand(s)
 
@@ -100,7 +111,6 @@ Options:
   -h, --help     Print help
   -V, --version  Print version
 ```
-
 
 ## Special Thanks
 
