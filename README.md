@@ -86,6 +86,15 @@ Running xodus-service in debug
 cargo run --bin xodus-service
 ```
 
+> [!TIP]
+> For better performance when decrypting MSIXVC files, enable the `aes` target feature by passing
+> `RUSTFLAGS=-Ctarget-feature=+aes,+ssse3` to cargo build.
+>
+> See https://docs.rs/aes/0.9.1/aes/#x86x86_64-intrinsics-aes-ni-and-vaes for more information.
+>
+> Note that AES-NI is not available on very old CPUs.
+> See https://en.wikipedia.org/wiki/AES_instruction_set#x86_architecture_processors for a list of compatible CPUs.
+
 ### CLI Usage
 
 ```
