@@ -857,7 +857,7 @@ impl XvdFile {
         url: String,
         out: &mut Writer,
         sfile: &SegmentFile,
-        full_key: [u8; 32],
+        content_keys: &HashMap<uuid::Uuid, [u8; 32]>,
         mut progress: Progress,
     ) -> Result<(), Box<dyn std::error::Error>>
     where
@@ -879,6 +879,10 @@ impl XvdFile {
         let file_offset_in_section;
 
         if let Some(s) = s {
+            let full_key = *content_keys
+                .get(&s.key_id)
+                .expect("missing content key, it was checked that it existed");
+
             let mut tweak_key = [0u8; 16];
             let mut data_key = [0u8; 16];
             tweak_key.copy_from_slice(&full_key[..16]);
