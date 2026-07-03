@@ -278,11 +278,16 @@ pub async fn run(
         );
         return;
     }
-    let Some((_, content_key)) = game_splicense.content_keys.into_iter().next() else {
-        return;
-    };
 
-    let full_key = content_key.unpack(&key).expect("failed to unpack");
+    let full_key = {
+        let Some((uuid, content_key)) = game_splicense.content_keys.into_iter().next() else {
+            return;
+        };
+
+        let key = content_key.unpack(&key).expect("failed to unpack");
+        tokens.save_cik(uuid, key).unwrap();
+        key
+    };
 
     let total_size = rfiles
         .iter()

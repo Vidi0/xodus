@@ -24,8 +24,9 @@ pub async fn run(
             game_splicense.content_keys.len()
         )
     }
-    if let Some((_, content_key)) = game_splicense.content_keys.into_iter().next() {
+    if let Some((uuid, content_key)) = game_splicense.content_keys.into_iter().next() {
         let unpacked = content_key.unpack(&key).expect("failed to unpack");
+        tokens.save_cik(uuid, unpacked).unwrap();
         unpack_file(xvd, path.to_string(), destination.to_string(), *unpacked).expect("unpack ok");
     }
 }
