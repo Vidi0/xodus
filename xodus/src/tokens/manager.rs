@@ -1,6 +1,7 @@
 use std::{collections::HashMap, sync::Arc, time::Instant};
 
 use crate::{
+    licensing::splicense::ContentKey,
     models::{
         secrets::{Device, Token, User},
         xbox::XstsResponse,
@@ -16,6 +17,7 @@ mod keys {
     pub const DEVICE_TOKENS: &str = "device-tokens";
     pub const USER_TOKENS: &str = "user-tokens";
     pub const USER_INFO: &str = "user-DA";
+    pub const CONTENT_INTEGRITY_KEYS: &str = "content-integrity-keys";
 }
 
 pub const PASSPORT_STS: &str = "http://Passport.NET/STS";
@@ -131,6 +133,25 @@ impl TokenManager {
         let _ = self
             .ephemeral
             .set_with_expiry(key, &bytes, Instant::now() + remaining);
+    }
+
+    // ---- CIK Content Integrity Key for MSIXVC decryption ----------------------
+
+    pub fn get_cik(&self, uuid: uuid::Uuid) -> Result<Option<ContentKey>, TokenStoreError> {
+        Self::get_table(
+            &*self.persistent,
+            keys::CONTENT_INTEGRITY_KEYS,
+            &uuid.hyphenated().to_string(),
+        )
+    }
+
+    pub fn save_cik(&self, uuid: uuid::Uuid, cik: ContentKey) -> Result<(), TokenStoreError> {
+        Self::write_table(
+            &*self.persistent,
+            keys::CONTENT_INTEGRITY_KEYS,
+            uuid.hyphenated().to_string(),
+            cik,
+        )
     }
 
     // ---- shared table read/modify/write helper ---------------------------
