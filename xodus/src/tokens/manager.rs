@@ -2,7 +2,7 @@ use std::{collections::HashMap, sync::Arc, time::Instant};
 
 use crate::{
     models::{
-        secrets::{Device, Token, TokenStore, User},
+        secrets::{Device, Token, User},
         xbox::XstsResponse,
     },
     tokens::{
@@ -68,11 +68,11 @@ impl TokenManager {
     // ---- Device STS tokens (keyed by SOAP "applies_to" address) -----------
 
     pub fn get_device_token_for(&self, address: &str) -> Result<Option<Token>, TokenStoreError> {
-        Self::read_token_store(&*self.persistent, keys::DEVICE_TOKENS, address)
+        Self::get_table(&*self.persistent, keys::DEVICE_TOKENS, address)
     }
 
     pub fn save_device_token(&self, address: String, token: Token) -> Result<(), TokenStoreError> {
-        Self::write_token_store(&*self.persistent, keys::DEVICE_TOKENS, address, token)
+        Self::write_table(&*self.persistent, keys::DEVICE_TOKENS, address, token)
     }
 
     pub fn get_device_sts_token(&self) -> Result<Token, TokenStoreError> {
@@ -83,11 +83,11 @@ impl TokenManager {
     // ---- User STS tokens (keyed by SOAP "applies_to" address) --------------
 
     pub fn get_user_token_for(&self, address: &str) -> Result<Option<Token>, TokenStoreError> {
-        Self::read_token_store(&*self.persistent, keys::USER_TOKENS, address)
+        Self::get_table(&*self.persistent, keys::USER_TOKENS, address)
     }
 
     pub fn save_user_token(&self, address: String, token: Token) -> Result<(), TokenStoreError> {
-        Self::write_token_store(&*self.persistent, keys::USER_TOKENS, address, token)
+        Self::write_table(&*self.persistent, keys::USER_TOKENS, address, token)
     }
 
     pub fn get_user_sts_token(&self) -> Result<Token, TokenStoreError> {
@@ -133,33 +133,53 @@ impl TokenManager {
             .set_with_expiry(key, &bytes, Instant::now() + remaining);
     }
 
-    // ---- shared TokenStore read/modify/write helper ---------------------------
+    // ---- shared table read/modify/write helper ---------------------------
 
-    fn read_token_store(
+    /// A table is a collection of indexed elements with the same type, `T`.
+    ///
+    /// Reads a table from the [`TokenBackend`] under `key`.
+    fn read_table<T>(
         backend: &dyn TokenBackend,
         key: &str,
-        address: &str,
-    ) -> Result<Option<Token>, TokenStoreError> {
-        let Some(bytes) = backend.get(key)? else {
-            return Ok(None);
-        };
-        let mut store: TokenStore = serde_json::from_slice(&bytes)?;
-        Ok(store.tokens.remove(address))
+    ) -> Result<HashMap<String, T>, TokenStoreError>
+    where
+        T: for<'de> serde::Deserialize<'de>,
+    {
+        let store = backend
+            .get(key)?
+            .filter(|bytes| !bytes.is_empty())
+            .map(|bytes| serde_json::from_slice::<HashMap<String, T>>(&bytes))
+            .transpose()?;
+
+        Ok(store.unwrap_or_default())
     }
 
-    fn write_token_store(
+    /// Gets an element from a table of elements of type `T`.
+    fn get_table<T>(
         backend: &dyn TokenBackend,
         key: &str,
-        address: String,
-        token: Token,
-    ) -> Result<(), TokenStoreError> {
-        let mut tokens: HashMap<String, Token> = match backend.get(key)? {
-            Some(bytes) if !bytes.is_empty() => {
-                serde_json::from_slice::<TokenStore>(&bytes)?.tokens
-            }
-            _ => HashMap::new(),
-        };
-        tokens.insert(address, token);
-        backend.set(key, &serde_json::to_vec(&TokenStore { tokens })?)
+        index: &str,
+    ) -> Result<Option<T>, TokenStoreError>
+    where
+        T: for<'de> serde::Deserialize<'de>,
+    {
+        let mut store = Self::read_table(backend, key)?;
+        Ok(store.remove(index))
+    }
+
+    /// Appends an element into a table of elements of type `T`.
+    fn write_table<T>(
+        backend: &dyn TokenBackend,
+        key: &str,
+        index: String,
+        value: T,
+    ) -> Result<(), TokenStoreError>
+    where
+        T: for<'de> serde::Deserialize<'de> + serde::Serialize,
+    {
+        let mut store: HashMap<String, T> = Self::read_table(backend, key)?;
+        store.insert(index, value);
+
+        backend.set(key, &serde_json::to_vec(&store)?)
     }
 }
