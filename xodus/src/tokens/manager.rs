@@ -143,8 +143,8 @@ impl TokenManager {
         let Some(bytes) = backend.get(key)? else {
             return Ok(None);
         };
-        let store: TokenStore = serde_json::from_slice(&bytes)?;
-        Ok(store.tokens.get(address).cloned())
+        let mut store: TokenStore = serde_json::from_slice(&bytes)?;
+        Ok(store.tokens.remove(address))
     }
 
     fn write_token_store(
