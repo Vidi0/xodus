@@ -4,8 +4,8 @@ use crate::models::xvd::{PAGE_SIZE, XvcRegionId};
 use std::io::{self, Read, Seek, SeekFrom};
 use std::iter;
 
-use aes::Aes128;
 use aes::cipher::{BlockCipherDecrypt, BlockCipherEncrypt, KeyInit};
+use aes::{Aes128Dec, Aes128Enc};
 
 #[derive(Clone, Copy)]
 pub struct Tweak([u8; 16]);
@@ -25,7 +25,7 @@ impl Tweak {
         self.0[0..4].copy_from_slice(&data_unit.to_le_bytes());
     }
 
-    fn encrypt(self, tweak_cipher: &Aes128) -> u128 {
+    fn encrypt(self, tweak_cipher: &Aes128Enc) -> u128 {
         let mut block = aes::Block::from(self.0);
         tweak_cipher.encrypt_block(&mut block);
         u128::from_le_bytes(block.0)
@@ -38,9 +38,9 @@ pub struct SectionReader<'t, R> {
     section_length: u64,
 
     tweak: Tweak,
-    tweak_cipher: Aes128,
 
-    data_cipher: Aes128,
+    tweak_cipher: Aes128Enc,
+    data_cipher: Aes128Dec,
 
     // If integrity is enabled, this must contain one entry per page in the section.
     // If integrity is disabled, use page_in_section as the data unit instead.
@@ -71,8 +71,8 @@ impl<'t, R: Read + Seek> SectionReader<'t, R> {
             section_offset,
             section_length,
             tweak: Tweak::new(0, header_id, vduid),
-            tweak_cipher: Aes128::new((&tweak_key).into()),
-            data_cipher: Aes128::new((&data_key).into()),
+            tweak_cipher: Aes128Enc::new((&tweak_key).into()),
+            data_cipher: Aes128Dec::new((&data_key).into()),
             data_units,
             cached_page_index: None,
             cached_page_plaintext: [0u8; PAGE_SIZE],
@@ -146,8 +146,8 @@ impl<'t, R: Read + Seek> SectionReader<'t, R> {
 pub fn decrypt_page_xts(
     page: &mut [u8; PAGE_SIZE],
     tweak: Tweak,
-    tweak_cipher: &Aes128,
-    data_cipher: &Aes128,
+    tweak_cipher: &Aes128Enc,
+    data_cipher: &Aes128Dec,
 ) {
     transform_page_xts(page, tweak, tweak_cipher, |block| {
         data_cipher.decrypt_block(block);
@@ -163,8 +163,8 @@ pub fn decrypt_page_xts(
 pub fn encrypt_page_xts(
     page: &mut [u8; PAGE_SIZE],
     tweak: Tweak,
-    tweak_cipher: &Aes128,
-    data_cipher: &Aes128,
+    tweak_cipher: &Aes128Enc,
+    data_cipher: &Aes128Enc,
 ) {
     transform_page_xts(page, tweak, tweak_cipher, |block| {
         data_cipher.encrypt_block(block);
@@ -182,7 +182,7 @@ pub fn encrypt_page_xts(
 fn transform_page_xts<F>(
     page: &mut [u8; PAGE_SIZE],
     tweak: Tweak,
-    tweak_cipher: &Aes128,
+    tweak_cipher: &Aes128Enc,
     transform: F,
 ) where
     F: Fn(&mut aes::Block),

@@ -1,5 +1,5 @@
-use aes::Aes128;
 use aes::cipher::KeyInit;
+use aes::{Aes128Dec, Aes128Enc};
 use bytes::Bytes;
 use futures_util::StreamExt;
 use ntfs::{Ntfs, NtfsFile, NtfsReadSeek};
@@ -837,8 +837,8 @@ impl XvdFile {
             data_key.copy_from_slice(&full_key[16..]);
 
             tweak = Some(Tweak::new(0, s.header_id, s.vduid));
-            tweak_cipher = Some(Aes128::new((&tweak_key).into()));
-            data_cipher = Some(Aes128::new((&data_key).into()));
+            tweak_cipher = Some(Aes128Enc::new((&tweak_key).into()));
+            data_cipher = Some(Aes128Dec::new((&data_key).into()));
             file_offset_in_section = sfile.offset - s.section_offset;
         } else {
             // TODO for data integrity we need a section for unencrypted sections...
