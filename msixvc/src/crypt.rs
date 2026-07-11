@@ -6,25 +6,41 @@ use std::iter;
 
 use aes::cipher::{BlockCipherDecrypt, BlockCipherEncrypt, KeyInit};
 use aes::{Aes128Dec, Aes128Enc};
+use uuid::Uuid;
 
-#[derive(Clone, Copy)]
-pub struct Tweak([u8; 16]);
+/// A [`TweakGenerator`] stores all common fields needed to generate every [`Tweak`]
+/// for an XVC region.
+#[derive(Clone, Copy, Debug)]
+pub struct TweakGenerator {
+    region_id: [u8; 4],
+    vduid: [u8; 8],
+}
 
-impl Tweak {
-    pub fn new(data_unit: u32, header_id: XvcRegionId, vduid: [u8; 8]) -> Self {
+impl TweakGenerator {
+    pub fn new(region_id: XvcRegionId, vduid: Uuid) -> Self {
+        Self {
+            region_id: region_id.to_le_bytes(),
+            vduid: vduid.to_bytes_le()[..8].try_into().unwrap(),
+        }
+    }
+
+    pub fn with_data_unit(self, data_unit: u32) -> Tweak {
         let mut buf = [0u8; 16];
 
         buf[0..4].copy_from_slice(&data_unit.to_le_bytes());
-        buf[4..8].copy_from_slice(&header_id.to_le_bytes());
-        buf[8..16].copy_from_slice(&vduid);
+        buf[4..8].copy_from_slice(&self.region_id);
+        buf[8..16].copy_from_slice(&self.vduid);
 
-        Self(buf)
+        Tweak(buf)
     }
+}
 
-    pub fn update_data_unit(&mut self, data_unit: u32) {
-        self.0[0..4].copy_from_slice(&data_unit.to_le_bytes());
-    }
+/// A [`Tweak`] is the per-page tweak input, derived from a [`TweakGenerator`] by adding
+/// a unique `data_unit` via [`TweakGenerator::with_data_unit`].
+#[derive(Clone, Copy, Debug)]
+pub struct Tweak([u8; 16]);
 
+impl Tweak {
     fn encrypt(self, tweak_cipher: &Aes128Enc) -> u128 {
         let mut block = aes::Block::from(self.0);
         tweak_cipher.encrypt_block(&mut block);
@@ -37,7 +53,7 @@ pub struct SectionReader<'t, R> {
     section_offset: u64,
     section_length: u64,
 
-    tweak: Tweak,
+    tweak: TweakGenerator,
 
     tweak_cipher: Aes128Enc,
     data_cipher: Aes128Dec,
@@ -57,7 +73,7 @@ impl<'t, R: Read + Seek> SectionReader<'t, R> {
         section_offset: u64,
         section_length: u64,
         header_id: XvcRegionId,
-        vduid: [u8; 8],
+        vduid: Uuid,
         full_key: [u8; 32],
         data_units: Option<&'t [u32]>,
     ) -> Self {
@@ -70,7 +86,7 @@ impl<'t, R: Read + Seek> SectionReader<'t, R> {
             inner,
             section_offset,
             section_length,
-            tweak: Tweak::new(0, header_id, vduid),
+            tweak: TweakGenerator::new(header_id, vduid),
             tweak_cipher: Aes128Enc::new((&tweak_key).into()),
             data_cipher: Aes128Dec::new((&data_key).into()),
             data_units,
@@ -119,7 +135,7 @@ impl<'t, R: Read + Seek> SectionReader<'t, R> {
             .checked_add(page_in_section * PAGE_SIZE as u64)
             .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "file offset overflow"))?;
 
-        self.tweak.update_data_unit(match &self.data_units {
+        let tweak = self.tweak.with_data_unit(match &self.data_units {
             Some(units) => *units
                 .get(page_in_section as usize)
                 .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "missing data unit"))?,
@@ -130,7 +146,7 @@ impl<'t, R: Read + Seek> SectionReader<'t, R> {
         self.inner.seek(SeekFrom::Start(file_offset))?;
         self.inner.read_exact(&mut page)?;
 
-        decrypt_page_xts(&mut page, self.tweak, &self.tweak_cipher, &self.data_cipher);
+        decrypt_page_xts(&mut page, tweak, &self.tweak_cipher, &self.data_cipher);
 
         self.cached_page_plaintext = page;
         self.cached_page_index = Some(page_in_section);
