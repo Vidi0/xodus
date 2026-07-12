@@ -608,19 +608,14 @@ impl XvdFile {
             for segment_no in section.first_segment_index..segment_header.segment_count {
                 let segment = &segments[segment_no as usize];
                 let s = segment.path_length;
-                let mut buf = vec![0u16, 0];
-                buf.resize(s as usize, 0);
+                let mut buf = vec![0u16; s as usize];
                 file.seek(SeekFrom::Start(
                     segment_metadata.offset + paths_offset + segment.path_offset as u64,
                 ))
                 .await?;
                 file.read_exact(buf.as_mut_bytes()).await?;
-                let file_name: String = String::from_utf16(buf.as_slice()).unwrap();
-                let page_length = if segment.filesize == 0 {
-                    1
-                } else {
-                    segment.filesize.div_ceil(PAGE_SIZE as u64)
-                };
+                let file_name = String::from_utf16(&buf).unwrap();
+                let page_length = segment.filesize.div_ceil(PAGE_SIZE as u64).max(1);
                 if page_offset * (PAGE_SIZE as u64)
                     >= section.section_offset + section.section_length
                 {
