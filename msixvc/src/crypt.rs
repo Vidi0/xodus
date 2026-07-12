@@ -3,6 +3,7 @@ use crate::models::xvd::{PAGE_SIZE, XvcRegionId};
 
 use std::io::{self, Read, Seek, SeekFrom};
 use std::iter;
+use std::range::Range;
 
 use aes::cipher::{BlockCipherDecrypt, BlockCipherEncrypt, KeyInit};
 use aes::{Aes128Dec, Aes128Enc};
@@ -93,6 +94,140 @@ where
         );
 
         decrypt_page_xts(page, tweak, &self.tweak_cipher, &self.data_cipher);
+    }
+}
+
+/// A [`RegionReader`] decrypts pages within an XVC region as the data is being read
+/// from an underlying reader.
+pub struct RegionReader<R, Units> {
+    /// The section of the whole file that this region spans. It is measured in bytes,
+    /// and both the start and the end must be multiples of [`PAGE_SIZE`].
+    region: Range<u64>,
+
+    /// The underlying reader, which usually spans the whole file. If it only spans
+    /// this region, then `self.region.start` must equal `0`.
+    inner: R,
+
+    /// The current offset that this reader is positioned at (relative to the start
+    /// of the region). It must be smaller than [`Self::region_len`], unless the reader
+    /// has been fully consumed.
+    read_offset: usize,
+
+    /// Decryptor struct with the AES keys and data units, used to decrypt whole pages.
+    decryptor: RegionDecryptor<Units>,
+
+    /// Page cache, needed for decryption because pages must be decrypted as a whole.
+    /// It is stored inside a `Box` in order to make the [`RegionReader`] struct smaller.
+    page: Box<[u8; PAGE_SIZE]>,
+}
+
+impl<R, Units> RegionReader<R, Units>
+where
+    R: Read,
+    Units: AsRef<[u32]>,
+{
+    /// Create a new [`RegionReader`] that decrypts data from this region on the fly.
+    ///
+    /// The provided reader must point to the start of the region, as this function
+    /// will fill its internal buffer with the first page's contents.
+    pub fn new(
+        inner: R,
+        region: Range<u64>,
+        decryptor: RegionDecryptor<Units>,
+    ) -> io::Result<Self> {
+        assert!(region.end > region.start);
+        assert!(region.start.is_multiple_of(PAGE_SIZE as u64));
+        assert!(region.end.is_multiple_of(PAGE_SIZE as u64));
+
+        // If the decryptor has data units, it must provide the right amount.
+        if let len @ 1.. = decryptor.data_units.as_ref().len() as u64 {
+            assert_eq!(len, (region.end - region.start) / PAGE_SIZE as u64);
+        }
+
+        let mut reader = Self {
+            region,
+            decryptor,
+            inner,
+            read_offset: 0,
+            page: Box::new([0u8; PAGE_SIZE]),
+        };
+
+        // Fill the buffer with the first page.
+        reader.next_page()?;
+
+        Ok(reader)
+    }
+
+    fn region_len(&self) -> u64 {
+        self.region.end - self.region.start
+    }
+
+    fn remaining_page(&self) -> &[u8] {
+        if self.read_offset as u64 >= self.region_len() {
+            return &[];
+        }
+
+        let page_offset = self.read_offset % PAGE_SIZE;
+        &self.page[page_offset as usize..]
+    }
+
+    fn next_page(&mut self) -> io::Result<()> {
+        assert!(self.read_offset.is_multiple_of(PAGE_SIZE));
+        assert!((self.read_offset as u64) < self.region_len());
+
+        let page_in_region = self.read_offset / PAGE_SIZE;
+
+        self.inner.read_exact(&mut *self.page)?;
+        self.decryptor.decrypt_at(page_in_region, &mut self.page);
+
+        Ok(())
+    }
+
+    fn consume(&mut self, bytes: usize) -> io::Result<()> {
+        let current_off = self.read_offset;
+        let current_page = current_off / PAGE_SIZE;
+
+        let next_off = current_off + bytes;
+        let next_page = next_off / PAGE_SIZE;
+
+        assert!(bytes <= PAGE_SIZE);
+        assert!(next_off <= (current_page + 1) * PAGE_SIZE);
+
+        // Advance the read offset
+        self.read_offset = next_off;
+
+        // Refill the buffer if it has been emptied, but only if there are still
+        // remaining pages in this region.
+
+        if next_off as u64 >= self.region_len() {
+            return Ok(());
+        }
+
+        if next_page > current_page {
+            self.next_page()?;
+        }
+
+        Ok(())
+    }
+}
+
+impl<R, Units> Read for RegionReader<R, Units>
+where
+    R: Read,
+    Units: AsRef<[u32]>,
+{
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        if buf.is_empty() {
+            return Ok(0);
+        }
+
+        let remaining_page = self.remaining_page();
+        let bytes = std::cmp::min(buf.len(), remaining_page.len());
+
+        buf[..bytes].copy_from_slice(&remaining_page[..bytes]);
+        self.consume(bytes)?;
+
+        Ok(bytes)
     }
 }
 
