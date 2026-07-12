@@ -48,6 +48,54 @@ impl Tweak {
     }
 }
 
+/// A [`RegionDecryptor`] decrypts pages within an XVC region using AES-XTS.
+///
+/// It is generic over `Units` (bounded by `AsRef<[u32]>`) so callers can supply
+/// data units as borrowed or owned.
+#[derive(Clone, Debug)]
+pub struct RegionDecryptor<Units> {
+    tweak: TweakGenerator,
+
+    tweak_cipher: Aes128Enc,
+    data_cipher: Aes128Dec,
+
+    /// If integrity is enabled, it must contain one entry per page in the region.
+    /// If integrity is disabled, `page_in_section` is used as the data unit instead, so this
+    /// field must be left empty (`&[]`).
+    data_units: Units,
+}
+
+impl<Units> RegionDecryptor<Units>
+where
+    Units: AsRef<[u32]>,
+{
+    pub fn new(region_id: XvcRegionId, vduid: Uuid, full_key: [u8; 32], data_units: Units) -> Self {
+        Self {
+            tweak: TweakGenerator::new(region_id, vduid),
+            tweak_cipher: Aes128Enc::new(full_key[..16].try_into().unwrap()),
+            data_cipher: Aes128Dec::new(full_key[16..].try_into().unwrap()),
+            data_units,
+        }
+    }
+
+    /// Decrypts `page` in place, using the corresponding tweak for `page_in_region`.
+    ///
+    /// The caller must ensure that `page_in_region` is in-bounds for this region.
+    /// Else, this function will place invalid data into `page`.
+    pub fn decrypt_at(&self, page_in_region: usize, page: &mut [u8; PAGE_SIZE]) {
+        let tweak = self.tweak.with_data_unit(
+            // Get the data unit that corresponds to this page, or `page_in_region` if missing.
+            self.data_units
+                .as_ref()
+                .get(page_in_region)
+                .copied()
+                .unwrap_or(page_in_region as u32),
+        );
+
+        decrypt_page_xts(page, tweak, &self.tweak_cipher, &self.data_cipher);
+    }
+}
+
 pub struct SectionReader<'t, R> {
     inner: R,
     section_offset: u64,
