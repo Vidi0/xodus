@@ -173,11 +173,16 @@ where
 
     fn next_page(&mut self) -> io::Result<()> {
         assert!(self.read_offset.is_multiple_of(PAGE_SIZE));
-        assert!((self.read_offset as u64) < self.region_len());
 
-        let page_in_region = self.read_offset / PAGE_SIZE;
+        // If there are no remaining pages in this region, return without
+        // filling the buffer.
+        if self.read_offset as u64 >= self.region_len() {
+            return Ok(());
+        }
 
         self.inner.read_exact(&mut *self.page)?;
+
+        let page_in_region = self.read_offset / PAGE_SIZE;
         self.decryptor.decrypt_at(page_in_region, &mut self.page);
 
         Ok(())
@@ -196,13 +201,7 @@ where
         // Advance the read offset
         self.read_offset = next_off;
 
-        // Refill the buffer if it has been emptied, but only if there are still
-        // remaining pages in this region.
-
-        if next_off as u64 >= self.region_len() {
-            return Ok(());
-        }
-
+        // Refill the buffer if it has been emptied.
         if next_page > current_page {
             self.next_page()?;
         }
