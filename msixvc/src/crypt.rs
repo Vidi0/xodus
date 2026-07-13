@@ -230,6 +230,53 @@ where
     }
 }
 
+impl<R, Units> Seek for RegionReader<R, Units>
+where
+    R: Read + Seek,
+    Units: AsRef<[u32]>,
+{
+    fn seek(&mut self, pos: SeekFrom) -> io::Result<u64> {
+        let old_pos = self.read_offset as u64;
+        let Some(new_pos) = (match pos {
+            SeekFrom::Start(n) => Some(n),
+            SeekFrom::End(n) => self.region_len().checked_add_signed(n),
+            SeekFrom::Current(n) => old_pos.checked_add_signed(n),
+        }) else {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "invalid seek to a negative or overflowing position",
+            ));
+        };
+
+        let old_page = old_pos / PAGE_SIZE as u64;
+        let new_page = new_pos / PAGE_SIZE as u64;
+
+        // If the page hasn't changed, update the `read_offset` pointer and
+        // return without modifying the buffer.
+        if old_page == new_page {
+            self.read_offset = new_pos as usize;
+            return Ok(new_pos);
+        }
+
+        // Seek to the start of the new page, decrypt it, and then set `read_offset`
+        // to the correct value.
+
+        let start_new_page = new_page * PAGE_SIZE as u64;
+        let absolute_start_new_page = start_new_page + self.region.start;
+        self.inner.seek(SeekFrom::Start(absolute_start_new_page))?;
+
+        self.read_offset = start_new_page as usize;
+        self.next_page()?;
+        self.read_offset = new_pos as usize;
+
+        Ok(new_pos)
+    }
+
+    fn stream_position(&mut self) -> io::Result<u64> {
+        Ok(self.read_offset as u64)
+    }
+}
+
 pub struct SectionReader<'t, R> {
     inner: R,
     section_offset: u64,
