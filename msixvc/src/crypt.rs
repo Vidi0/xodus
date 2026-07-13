@@ -168,7 +168,7 @@ where
         }
 
         let page_offset = self.read_offset % PAGE_SIZE;
-        &self.page[page_offset as usize..]
+        &self.page[page_offset..]
     }
 
     fn next_page(&mut self) -> io::Result<()> {
