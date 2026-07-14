@@ -97,6 +97,172 @@ where
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct Region<Units> {
+    pages: Range<u64>,
+    decryptor: Option<RegionDecryptor<Units>>,
+}
+
+impl<Units> Region<Units>
+where
+    Units: AsRef<[u32]>,
+{
+    pub fn new(pages: Range<u64>, decryptor: Option<RegionDecryptor<Units>>) -> Self {
+        assert!(pages.end >= pages.start);
+        let num_pages = pages.end - pages.start;
+
+        // If the decryptor provides data units, make sure there is one data unit for each page.
+        if let Some(dec) = &decryptor
+            && dec.data_units.as_ref().len() > 0
+        {
+            assert_eq!(dec.data_units.as_ref().len() as u64, num_pages);
+        }
+
+        Self { pages, decryptor }
+    }
+}
+
+pub struct DecryptorReader<R, Units> {
+    /// The underlying reader, which spans the whole file.
+    inner: R,
+
+    /// The current offset that this reader is positioned at (relative to the start
+    /// of the inner reader).
+    read_offset: usize,
+
+    /// List of each region: the indices of the pages it spans and its decryptor (if encrypted).
+    regions: Vec<Region<Units>>,
+
+    /// Page cache, needed for decryption because pages must be decrypted as a whole.
+    /// It is stored inside a `Box` in order to make the [`DecryptorReader`] struct smaller.
+    page: Box<[u8; PAGE_SIZE]>,
+}
+
+impl<R, Units> DecryptorReader<R, Units>
+where
+    R: Read,
+    Units: AsRef<[u32]>,
+{
+    pub fn new(inner: R, regions: Vec<Region<Units>>) -> io::Result<Self> {
+        // All regions must be consecutive.
+        regions.iter().fold(0, |acc, r| {
+            assert_eq!(acc, r.pages.start);
+            r.pages.end
+        });
+
+        let mut reader = Self {
+            inner,
+            read_offset: 0,
+            regions,
+            page: Box::new([0u8; PAGE_SIZE]),
+        };
+
+        // Fill the buffer with the first page.
+        reader.next_page()?;
+
+        Ok(reader)
+    }
+
+    #[inline]
+    fn reader_len(&self) -> u64 {
+        self.regions
+            .last()
+            .map(|r| r.pages.end * PAGE_SIZE as u64)
+            .unwrap_or_default()
+    }
+
+    #[inline]
+    fn is_finished(&self) -> bool {
+        self.read_offset as u64 >= self.reader_len()
+    }
+
+    #[inline]
+    fn current_page(&self) -> usize {
+        self.read_offset / PAGE_SIZE
+    }
+
+    fn next_page(&mut self) -> io::Result<()> {
+        assert!(self.read_offset.is_multiple_of(PAGE_SIZE));
+
+        // If there are no remaining pages in this region, return without
+        // filling the buffer.
+        if self.is_finished() {
+            return Ok(());
+        }
+
+        // Read the new page.
+        self.inner.read_exact(&mut *self.page)?;
+
+        // Decrypt the new page.
+        let current_page = self.current_page() as u64;
+        let current_region = &self.regions[self
+            .regions
+            .binary_search_by(|r| match current_page {
+                p if p < r.pages.start => Ordering::Greater,
+                p if p >= r.pages.end => Ordering::Less,
+                _ => Ordering::Equal,
+            })
+            .expect("current page must be in some region")];
+
+        if let Some(decryptor) = &current_region.decryptor {
+            let page_in_region = (current_page - current_region.pages.start) as usize;
+            decryptor.decrypt_at(page_in_region, &mut self.page);
+        }
+
+        Ok(())
+    }
+
+    fn consume(&mut self, bytes: usize) -> io::Result<()> {
+        let current_off = self.read_offset;
+        let current_page = current_off / PAGE_SIZE;
+
+        let next_off = current_off + bytes;
+        let next_page = next_off / PAGE_SIZE;
+
+        assert!(bytes <= PAGE_SIZE);
+        assert!(next_off <= (current_page + 1) * PAGE_SIZE);
+
+        // Advance the read offset
+        self.read_offset = next_off;
+
+        // Refill the buffer if it has been emptied.
+        if next_page > current_page {
+            self.next_page()?;
+        }
+
+        Ok(())
+    }
+
+    fn remaining_page(&self) -> &[u8] {
+        if self.is_finished() {
+            return &[];
+        }
+
+        let page_offset = self.read_offset % PAGE_SIZE;
+        &self.page[page_offset..]
+    }
+}
+
+impl<R, Units> Read for DecryptorReader<R, Units>
+where
+    R: Read,
+    Units: AsRef<[u32]>,
+{
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        if buf.is_empty() {
+            return Ok(0);
+        }
+
+        let remaining_page = self.remaining_page();
+        let bytes = std::cmp::min(buf.len(), remaining_page.len());
+
+        buf[..bytes].copy_from_slice(&remaining_page[..bytes]);
+        self.consume(bytes)?;
+
+        Ok(bytes)
+    }
+}
+
 /// A [`RegionReader`] decrypts pages within an XVC region as the data is being read
 /// from an underlying reader.
 pub struct RegionReader<R, Units> {
