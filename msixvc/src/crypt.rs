@@ -168,15 +168,6 @@ where
         self.read_offset as u64 >= self.region_len()
     }
 
-    fn remaining_page(&self) -> &[u8] {
-        if self.is_finished() {
-            return &[];
-        }
-
-        let page_offset = self.read_offset % PAGE_SIZE;
-        &self.page[page_offset..]
-    }
-
     fn next_page(&mut self) -> io::Result<()> {
         assert!(self.read_offset.is_multiple_of(PAGE_SIZE));
 
@@ -213,6 +204,15 @@ where
         }
 
         Ok(())
+    }
+
+    fn remaining_page(&self) -> &[u8] {
+        if self.is_finished() {
+            return &[];
+        }
+
+        let page_offset = self.read_offset % PAGE_SIZE;
+        &self.page[page_offset..]
     }
 }
 
