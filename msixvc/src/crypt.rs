@@ -8,6 +8,7 @@ use std::range::Range;
 
 use aes::cipher::{BlockCipherDecrypt, BlockCipherEncrypt, KeyInit};
 use aes::{Aes128Dec, Aes128Enc};
+use thiserror::Error;
 use uuid::Uuid;
 
 /// A [`TweakGenerator`] stores all common fields needed to generate every [`Tweak`]
@@ -104,22 +105,42 @@ pub struct Region<Units> {
     decryptor: Option<RegionDecryptor<Units>>,
 }
 
+#[derive(Debug, Error)]
+pub enum NewRegionError {
+    #[error("region page range is inverted: {0:?}")]
+    InvalidPageRange(Range<u64>),
+
+    #[error("expected {expected} data units to match page count, found {found}")]
+    InvalidDataUnitCount { expected: u64, found: u64 },
+}
+
 impl<Units> Region<Units>
 where
     Units: AsRef<[u32]>,
 {
-    pub fn new(pages: Range<u64>, decryptor: Option<RegionDecryptor<Units>>) -> Self {
-        assert!(pages.end >= pages.start);
+    pub fn new(
+        pages: Range<u64>,
+        decryptor: Option<RegionDecryptor<Units>>,
+    ) -> Result<Self, NewRegionError> {
+        // Make sure the range makes sense.
+        if pages.end < pages.start {
+            return Err(NewRegionError::InvalidPageRange(pages));
+        }
+
         let num_pages = pages.end - pages.start;
 
         // If the decryptor provides data units, make sure there is one data unit for each page.
         if let Some(dec) = &decryptor
-            && dec.data_units.as_ref().len() > 0
+            && let data_units @ 1.. = dec.data_units.as_ref().len() as u64
+            && data_units != num_pages
         {
-            assert_eq!(dec.data_units.as_ref().len() as u64, num_pages);
+            return Err(NewRegionError::InvalidDataUnitCount {
+                expected: num_pages,
+                found: data_units,
+            });
         }
 
-        Self { pages, decryptor }
+        Ok(Self { pages, decryptor })
     }
 }
 
@@ -139,17 +160,32 @@ pub struct DecryptorReader<R, Units> {
     page: Box<[u8; PAGE_SIZE]>,
 }
 
+#[derive(Debug, Error)]
+pub enum NewDecryptorReaderError<Units> {
+    #[error("IO error: {0}")]
+    IoError(#[from] io::Error),
+
+    #[error("all regions must be consecutive")]
+    NonConsecutiveRegions(Vec<Region<Units>>),
+}
+
 impl<R, Units> DecryptorReader<R, Units>
 where
     R: Read,
     Units: AsRef<[u32]>,
 {
-    pub fn new(inner: R, regions: Vec<Region<Units>>) -> io::Result<Self> {
-        // All regions must be consecutive.
-        regions.iter().fold(0, |acc, r| {
-            assert_eq!(acc, r.pages.start);
-            r.pages.end
-        });
+    pub fn new(
+        inner: R,
+        regions: Vec<Region<Units>>,
+    ) -> Result<Self, NewDecryptorReaderError<Units>> {
+        // All regions must be consecutive. The first one must start at page 0.
+        if regions
+            .iter()
+            .try_fold(0, |acc, r| (acc == r.pages.start).then_some(r.pages.end))
+            .is_none()
+        {
+            return Err(NewDecryptorReaderError::NonConsecutiveRegions(regions));
+        };
 
         let mut reader = Self {
             inner,
