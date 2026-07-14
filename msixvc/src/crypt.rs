@@ -1,6 +1,7 @@
 use crate::math::gf_mul_x;
 use crate::models::xvd::{PAGE_SIZE, XvcRegionId};
 
+use std::cmp::Ordering;
 use std::io::{self, Read, Seek, SeekFrom};
 use std::iter;
 use std::range::Range;
@@ -260,6 +261,59 @@ where
         self.consume(bytes)?;
 
         Ok(bytes)
+    }
+}
+
+impl<R, Units> Seek for DecryptorReader<R, Units>
+where
+    R: Read + Seek,
+    Units: AsRef<[u32]>,
+{
+    fn seek(&mut self, pos: SeekFrom) -> io::Result<u64> {
+        let old_pos = self.read_offset as u64;
+        let Some(new_pos) = (match pos {
+            SeekFrom::Start(n) => Some(n),
+            SeekFrom::End(n) => self.reader_len().checked_add_signed(n),
+            SeekFrom::Current(n) => old_pos.checked_add_signed(n),
+        }) else {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "invalid seek to a negative or overflowing position",
+            ));
+        };
+
+        let old_page = old_pos / PAGE_SIZE as u64;
+        let new_page = new_pos / PAGE_SIZE as u64;
+
+        // If the page hasn't changed, update the `read_offset` pointer and
+        // return without modifying the buffer.
+        if old_page == new_page {
+            self.read_offset = new_pos as usize;
+            return Ok(new_pos);
+        }
+
+        // Seek to the start of the new page, decrypt it, and then set `read_offset`
+        // to the correct value.
+
+        // It is guaranteed by the constructor of `DecryptorReader` that the first region
+        // starts at page number 0, so the start of the new page is absolute to the start
+        // of the inner reader.
+        if let Some(region) = self.regions.first() {
+            assert!(region.pages.start == 0);
+        }
+
+        let start_new_page = new_page * PAGE_SIZE as u64;
+        self.inner.seek(SeekFrom::Start(start_new_page))?;
+
+        self.read_offset = start_new_page as usize;
+        self.next_page()?;
+        self.read_offset = new_pos as usize;
+
+        Ok(new_pos)
+    }
+
+    fn stream_position(&mut self) -> io::Result<u64> {
+        Ok(self.read_offset as u64)
     }
 }
 
