@@ -158,12 +158,18 @@ where
         Ok(reader)
     }
 
+    #[inline]
     fn region_len(&self) -> u64 {
         self.region.end - self.region.start
     }
 
+    #[inline]
+    fn is_finished(&self) -> bool {
+        self.read_offset as u64 >= self.region_len()
+    }
+
     fn remaining_page(&self) -> &[u8] {
-        if self.read_offset as u64 >= self.region_len() {
+        if self.is_finished() {
             return &[];
         }
 
@@ -176,7 +182,7 @@ where
 
         // If there are no remaining pages in this region, return without
         // filling the buffer.
-        if self.read_offset as u64 >= self.region_len() {
+        if self.is_finished() {
             return Ok(());
         }
 
