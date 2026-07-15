@@ -164,9 +164,6 @@ pub struct DecryptorReader<R, Units> {
 
 #[derive(Debug, Error)]
 pub enum NewDecryptorReaderError<Units> {
-    #[error("IO error: {0}")]
-    IoError(#[from] io::Error),
-
     #[error("all regions must be consecutive")]
     NonConsecutiveRegions(Vec<Region<Units>>),
 }
@@ -194,9 +191,6 @@ where
             regions,
             buffer: PageBuffer::new(),
         };
-
-        // Fill the buffer with the first page.
-        reader.next_page()?;
 
         Ok(reader)
     }
