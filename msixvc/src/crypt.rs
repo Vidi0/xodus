@@ -178,11 +178,10 @@ where
         inner: R,
         regions: Vec<Region<Units>>,
     ) -> Result<Self, NewDecryptorReaderError<Units>> {
-        // All regions must be consecutive. The first one must start at page 0.
+        // All regions must be consecutive.
         if regions
-            .iter()
-            .try_fold(0, |acc, r| (acc == r.pages.start).then_some(r.pages.end))
-            .is_none()
+            .array_windows()
+            .any(|[curr, next]| curr.pages.end != next.pages.start)
         {
             return Err(NewDecryptorReaderError::NonConsecutiveRegions(regions));
         };
@@ -209,11 +208,16 @@ where
     }
 
     #[inline]
-    fn reader_len(&self) -> u64 {
+    fn reader_end(&self) -> u64 {
         self.regions
             .last()
             .map(|r| r.pages.end * PAGE_SIZE as u64)
             .unwrap_or_default()
+    }
+
+    #[inline]
+    fn reader_len(&self) -> u64 {
+        self.reader_end() - self.reader_start()
     }
 
     #[inline]
