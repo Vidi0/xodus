@@ -109,6 +109,7 @@ where
     }
 }
 
+#[derive(Debug)]
 pub struct DecryptorReader<R, Units> {
     /// The underlying reader, which spans the whole file.
     inner: R,

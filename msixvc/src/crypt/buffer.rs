@@ -6,6 +6,7 @@ use std::ops::{Deref, DerefMut};
 /// The buffer is stored inside a `Box` in order to make the struct smaller.
 ///
 /// Stores whether the current buffer is valid or it needs to be refilled.
+#[derive(Debug)]
 pub struct PageBuffer {
     buffer: Box<[u8; PAGE_SIZE]>,
     is_valid: bool,
