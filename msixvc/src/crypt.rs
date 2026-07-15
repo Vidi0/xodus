@@ -201,6 +201,14 @@ where
     }
 
     #[inline]
+    fn reader_start(&self) -> u64 {
+        self.regions
+            .first()
+            .map(|r| r.pages.start * PAGE_SIZE as u64)
+            .unwrap_or_default()
+    }
+
+    #[inline]
     fn reader_len(&self) -> u64 {
         self.regions
             .last()
@@ -328,7 +336,18 @@ where
 
         // If the page hasn't changed, update the `read_offset` pointer and
         // return without modifying the buffer.
-        if old_page == new_page {
+        if new_page == old_page {
+            self.read_offset = new_pos as usize;
+            return Ok(new_pos);
+        }
+
+        let start_new_page = new_page * PAGE_SIZE as u64;
+
+        // If the page is the next one, seeking can be avoided as the inner reader is always
+        // positioned at the start of the next page.
+        if new_page == old_page + 1 {
+            self.read_offset = start_new_page as usize;
+            self.next_page()?;
             self.read_offset = new_pos as usize;
             return Ok(new_pos);
         }
@@ -336,20 +355,8 @@ where
         // Seek to the start of the new page, decrypt it, and then set `read_offset`
         // to the correct value.
 
-        // It is guaranteed by the constructor of `DecryptorReader` that the first region
-        // starts at page number 0, so the start of the new page is absolute to the start
-        // of the inner reader.
-        if let Some(region) = self.regions.first() {
-            assert!(region.pages.start == 0);
-        }
-
-        let start_new_page = new_page * PAGE_SIZE as u64;
-
-        // If the page is the next one, seeking can be avoided as the inner reader is always
-        // positioned at the start of the next page.
-        if new_page != old_page + 1 {
-            self.inner.seek(SeekFrom::Start(start_new_page))?;
-        }
+        let absolute_start_new_page = start_new_page + self.reader_start();
+        self.inner.seek(SeekFrom::Start(absolute_start_new_page))?;
 
         self.read_offset = start_new_page as usize;
         self.next_page()?;
