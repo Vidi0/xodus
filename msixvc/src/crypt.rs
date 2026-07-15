@@ -344,7 +344,12 @@ where
         }
 
         let start_new_page = new_page * PAGE_SIZE as u64;
-        self.inner.seek(SeekFrom::Start(start_new_page))?;
+
+        // If the page is the next one, seeking can be avoided as the inner reader is always
+        // positioned at the start of the next page.
+        if new_page != old_page + 1 {
+            self.inner.seek(SeekFrom::Start(start_new_page))?;
+        }
 
         self.read_offset = start_new_page as usize;
         self.next_page()?;
