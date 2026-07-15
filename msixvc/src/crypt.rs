@@ -334,34 +334,25 @@ where
         let old_page = old_pos / PAGE_SIZE as u64;
         let new_page = new_pos / PAGE_SIZE as u64;
 
-        // If the page hasn't changed, update the `read_offset` pointer and
-        // return without modifying the buffer.
-        if new_page == old_page {
-            self.read_offset = new_pos as usize;
-            return Ok(new_pos);
-        }
-
-        let start_new_page = new_page * PAGE_SIZE as u64;
-
-        // If the page is the next one, seeking can be avoided as the inner reader is always
-        // positioned at the start of the next page.
-        if new_page == old_page + 1 {
-            self.read_offset = start_new_page as usize;
-            self.next_page()?;
-            self.read_offset = new_pos as usize;
-            return Ok(new_pos);
-        }
-
         // Seek to the start of the new page, decrypt it, and then set `read_offset`
         // to the correct value.
 
-        let absolute_start_new_page = start_new_page + self.reader_start();
-        self.inner.seek(SeekFrom::Start(absolute_start_new_page))?;
+        // If the page hasn't changed, don't modify the buffer.
+        if new_page != old_page {
+            let start_new_page = new_page * PAGE_SIZE as u64;
 
-        self.read_offset = start_new_page as usize;
-        self.next_page()?;
+            // If the page is the next one, seeking can be avoided as the inner reader is always
+            // positioned at the start of the next page.
+            if new_page != old_page + 1 {
+                let absolute_start_new_page = start_new_page + self.reader_start();
+                self.inner.seek(SeekFrom::Start(absolute_start_new_page))?;
+            }
+
+            self.read_offset = start_new_page as usize;
+            self.next_page()?;
+        }
+
         self.read_offset = new_pos as usize;
-
         Ok(new_pos)
     }
 
