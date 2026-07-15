@@ -307,15 +307,20 @@ where
 {
     fn seek(&mut self, pos: SeekFrom) -> io::Result<u64> {
         let old_pos = self.read_offset as u64;
-        let Some(new_pos) = (match pos {
+        let new_pos = match pos {
             SeekFrom::Start(n) => Some(n),
             SeekFrom::End(n) => self.reader_len().checked_add_signed(n),
             SeekFrom::Current(n) => old_pos.checked_add_signed(n),
-        }) else {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidInput,
-                "invalid seek to a negative or overflowing position",
-            ));
+        };
+
+        let new_pos = match new_pos {
+            Some(pos) if pos < self.reader_len() => pos,
+            _ => {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    "invalid seek to a negative or overflowing position",
+                ));
+            }
         };
 
         let old_page = old_pos / PAGE_SIZE as u64;
