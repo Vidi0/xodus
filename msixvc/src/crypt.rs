@@ -314,7 +314,7 @@ where
         };
 
         let new_pos = match new_pos {
-            Some(pos) if pos < self.reader_len() => pos,
+            Some(pos) if pos <= self.reader_len() => pos,
             _ => {
                 return Err(io::Error::new(
                     io::ErrorKind::InvalidInput,
