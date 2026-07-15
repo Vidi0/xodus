@@ -1,3 +1,6 @@
+mod buffer;
+use buffer::PageBuffer;
+
 use crate::math::gf_mul_x;
 use crate::models::xvd::{PAGE_SIZE, XvcRegionId};
 
@@ -155,9 +158,8 @@ pub struct DecryptorReader<R, Units> {
     /// List of each region: the indices of the pages it spans and its decryptor (if encrypted).
     regions: Vec<Region<Units>>,
 
-    /// Page cache, needed for decryption because pages must be decrypted as a whole.
-    /// It is stored inside a `Box` in order to make the [`DecryptorReader`] struct smaller.
-    page: Box<[u8; PAGE_SIZE]>,
+    /// Cache of the currently loaded page, used to decrypt whole pages at a time.
+    buffer: PageBuffer,
 }
 
 #[derive(Debug, Error)]
@@ -190,7 +192,7 @@ where
             inner,
             read_offset: 0,
             regions,
-            page: Box::new([0u8; PAGE_SIZE]),
+            buffer: PageBuffer::new(),
         };
 
         // Fill the buffer with the first page.
@@ -243,13 +245,10 @@ where
         // If there are no remaining pages in this region, return without
         // filling the buffer.
         if self.is_finished() {
+            self.buffer.clear();
             return Ok(());
         }
 
-        // Read the new page.
-        self.inner.read_exact(&mut *self.page)?;
-
-        // Decrypt the new page.
         let current_page = self.current_page() as u64;
         let current_region = &self.regions[self
             .regions
@@ -260,9 +259,17 @@ where
             })
             .expect("current page must be in some region")];
 
+        // Start the buffer refill process. The buffer will be marked as available
+        // after the guard is dropped.
+        let mut guard = self.buffer.refill();
+
+        // Read the new page.
+        self.inner.read_exact(&mut *guard)?;
+
+        // Decrypt the new page.
         if let Some(decryptor) = &current_region.decryptor {
             let page_in_region = (current_page - current_region.pages.start) as usize;
-            decryptor.decrypt_at(page_in_region, &mut self.page);
+            decryptor.decrypt_at(page_in_region, &mut *guard);
         }
 
         Ok(())
@@ -290,12 +297,8 @@ where
     }
 
     fn remaining_page(&self) -> &[u8] {
-        if self.is_finished() {
-            return &[];
-        }
-
         let page_offset = self.read_offset % PAGE_SIZE;
-        &self.page[page_offset..]
+        self.buffer.get().map_or(&[], |buf| &buf[page_offset..])
     }
 }
 
