@@ -5,7 +5,7 @@ use crate::math::gf_mul_x;
 use crate::models::xvd::{PAGE_SIZE, XvcRegionId};
 
 use std::cmp::Ordering;
-use std::io::{self, Read, Seek, SeekFrom};
+use std::io::{self, BufRead, Read, Seek, SeekFrom};
 use std::iter;
 use std::range::Range;
 
@@ -274,31 +274,47 @@ where
 
         Ok(())
     }
+}
 
-    fn consume(&mut self, bytes: usize) -> io::Result<()> {
+impl<R, Units> BufRead for DecryptorReader<R, Units>
+where
+    R: Read,
+    Units: AsRef<[u32]>,
+{
+    fn fill_buf(&mut self) -> io::Result<&[u8]> {
+        // This can't be an `if let Some(buf) = ...` because of limitations with the
+        // current Rust borrow checker. Once polonius (the next-gen borrow checker)
+        // is stabilized, this code should be simplified.
+        if self.buffer.get().is_some() {
+            let page_offset = self.read_offset % PAGE_SIZE;
+            let buf = &self.buffer.get().unwrap()[page_offset..];
+            return Ok(buf);
+        }
+
+        // If the buffer is empty, refill it.
+        self.next_page()?;
+
+        // Return the new page, or an empty slice if the reader reached EOF.
+        Ok(self.buffer.get().map_or(&[], |buf| &*buf))
+    }
+
+    fn consume(&mut self, amount: usize) {
         let current_off = self.read_offset;
         let current_page = current_off / PAGE_SIZE;
 
-        let next_off = current_off + bytes;
+        let next_off = current_off + amount;
         let next_page = next_off / PAGE_SIZE;
 
-        assert!(bytes <= PAGE_SIZE);
+        assert!(amount <= PAGE_SIZE);
         assert!(next_off <= (current_page + 1) * PAGE_SIZE);
 
         // Advance the read offset
         self.read_offset = next_off;
 
-        // Refill the buffer if it has been emptied.
+        // Clear the buffer if it has been fully consumed.
         if next_page > current_page {
-            self.next_page()?;
+            self.buffer.clear();
         }
-
-        Ok(())
-    }
-
-    fn remaining_page(&self) -> &[u8] {
-        let page_offset = self.read_offset % PAGE_SIZE;
-        self.buffer.get().map_or(&[], |buf| &buf[page_offset..])
     }
 }
 
@@ -312,11 +328,11 @@ where
             return Ok(0);
         }
 
-        let remaining_page = self.remaining_page();
+        let remaining_page = self.fill_buf()?;
         let bytes = std::cmp::min(buf.len(), remaining_page.len());
 
         buf[..bytes].copy_from_slice(&remaining_page[..bytes]);
-        self.consume(bytes)?;
+        self.consume(bytes);
 
         Ok(bytes)
     }
