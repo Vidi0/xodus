@@ -200,19 +200,26 @@ where
     }
 
     #[inline]
-    fn reader_start(&self) -> u64 {
+    fn first_page(&self) -> u64 {
         self.regions
             .first()
-            .map(|r| r.pages.start * PAGE_SIZE as u64)
+            .map(|r| r.pages.start)
             .unwrap_or_default()
     }
 
     #[inline]
+    fn last_page(&self) -> u64 {
+        self.regions.last().map(|r| r.pages.end).unwrap_or_default()
+    }
+
+    #[inline]
+    fn reader_start(&self) -> u64 {
+        self.first_page() * PAGE_SIZE as u64
+    }
+
+    #[inline]
     fn reader_end(&self) -> u64 {
-        self.regions
-            .last()
-            .map(|r| r.pages.end * PAGE_SIZE as u64)
-            .unwrap_or_default()
+        self.last_page() * PAGE_SIZE as u64
     }
 
     #[inline]
@@ -227,7 +234,7 @@ where
 
     #[inline]
     fn current_page(&self) -> usize {
-        self.read_offset / PAGE_SIZE
+        self.first_page() as usize + self.read_offset / PAGE_SIZE
     }
 
     fn next_page(&mut self) -> io::Result<()> {
