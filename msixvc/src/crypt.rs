@@ -83,12 +83,6 @@ pub struct DecryptorReader<R, Units> {
     buffer: PageBuffer,
 }
 
-#[derive(Debug, Error)]
-pub enum NewDecryptorReaderError<Units> {
-    #[error("all regions must be consecutive")]
-    NonConsecutiveRegions(Vec<Region<Units>>),
-}
-
 impl<R, Units> DecryptorReader<R, Units>
 where
     R: Read,
