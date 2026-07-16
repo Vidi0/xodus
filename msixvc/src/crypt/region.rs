@@ -120,6 +120,8 @@ where
 
     #[inline]
     pub fn region_at(&self, page: u64) -> &Region<Units> {
+        assert!(self.pages.contains(&page));
+
         &self.regions[self
             .regions
             .binary_search_by(|r| match page {
