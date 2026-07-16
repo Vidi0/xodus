@@ -107,6 +107,14 @@ where
         self.regions.pages().start as usize + self.read_offset / PAGE_SIZE
     }
 
+    #[inline]
+    fn buffer(&self) -> Option<&[u8]> {
+        self.buffer.get().map(|buf| {
+            let page_offset = self.read_offset % PAGE_SIZE;
+            &buf[page_offset..]
+        })
+    }
+
     fn next_page(&mut self) -> io::Result<()> {
         assert!(self.read_offset.is_multiple_of(PAGE_SIZE));
 
@@ -143,17 +151,15 @@ where
         // This can't be an `if let Some(buf) = ...` because of limitations with the
         // current Rust borrow checker. Once polonius (the next-gen borrow checker)
         // is stabilized, this code should be simplified.
-        if self.buffer.get().is_some() {
-            let page_offset = self.read_offset % PAGE_SIZE;
-            let buf = self.buffer.get().unwrap();
-            return Ok(&buf[page_offset..]);
+        if self.buffer().is_some() {
+            return Ok(self.buffer().unwrap());
         }
 
         // If the buffer is empty, refill it.
         self.next_page()?;
 
         // Return the new page, or an empty slice if the reader reached EOF.
-        Ok(self.buffer.get().map_or(&[], |buf| buf))
+        Ok(self.buffer().unwrap_or_default())
     }
 
     fn consume(&mut self, amount: usize) {
