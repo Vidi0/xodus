@@ -245,7 +245,7 @@ where
         if self.buffer.get().is_some() {
             let page_offset = self.read_offset % PAGE_SIZE;
             let buf = self.buffer.get().unwrap();
-            return Ok(&buf[..page_offset]);
+            return Ok(&buf[page_offset..]);
         }
 
         // If the buffer is empty, refill it.
