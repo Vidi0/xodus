@@ -64,6 +64,15 @@ where
 pub struct RegionTable<Units> {
     /// List of each region: the indices of the pages it spans and its decryptor (if encrypted).
     regions: Vec<Region<Units>>,
+
+    /// The range of pages this region table spans in total. `self.pages.start` doesn't
+    /// need to be 0. The value is precomputed from `regions` in order to avoid having to
+    /// calculate it on every read.
+    pages: Range<u64>,
+
+    /// The number of bytes this region table spans in total. The value is precomputed
+    /// from `regions` in order to avoid having to calculate it on every read.
+    reader_len: u64,
 }
 
 #[derive(Debug, Error)]
@@ -83,35 +92,30 @@ where
             return Err(NonConsecutiveRegionsError(regions));
         };
 
-        Ok(Self { regions })
+        // Precompute the values that are frequently read into the struct for cheaper access.
+
+        let pages = Range::from(
+            regions.first().map(|r| r.pages.start).unwrap_or_default()
+                ..regions.last().map(|r| r.pages.end).unwrap_or_default(),
+        );
+
+        let reader_len = (pages.end - pages.start) * PAGE_SIZE as u64;
+
+        Ok(Self {
+            regions,
+            pages,
+            reader_len,
+        })
     }
 
     #[inline]
-    pub fn first_page(&self) -> u64 {
-        self.regions
-            .first()
-            .map(|r| r.pages.start)
-            .unwrap_or_default()
-    }
-
-    #[inline]
-    pub fn last_page(&self) -> u64 {
-        self.regions.last().map(|r| r.pages.end).unwrap_or_default()
-    }
-
-    #[inline]
-    pub fn reader_start(&self) -> u64 {
-        self.first_page() * PAGE_SIZE as u64
-    }
-
-    #[inline]
-    pub fn reader_end(&self) -> u64 {
-        self.last_page() * PAGE_SIZE as u64
+    pub fn pages(&self) -> Range<u64> {
+        self.pages
     }
 
     #[inline]
     pub fn reader_len(&self) -> u64 {
-        self.reader_end() - self.reader_start()
+        self.reader_len
     }
 
     #[inline]

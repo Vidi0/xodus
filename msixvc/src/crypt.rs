@@ -110,7 +110,7 @@ where
 
     #[inline]
     fn current_page(&self) -> usize {
-        self.regions.first_page() as usize + self.read_offset / PAGE_SIZE
+        self.regions.pages().start as usize + self.read_offset / PAGE_SIZE
     }
 
     fn next_page(&mut self) -> io::Result<()> {
@@ -238,7 +238,8 @@ where
             // If the page is the next one, seeking can be avoided as the inner reader is always
             // positioned at the start of the next page.
             if new_page != old_page + 1 {
-                let absolute_start_new_page = start_new_page + self.regions.reader_start();
+                let absolute_start_new_page =
+                    start_new_page + self.regions.pages().start * PAGE_SIZE as u64;
                 self.inner.seek(SeekFrom::Start(absolute_start_new_page))?;
             }
 
