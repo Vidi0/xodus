@@ -158,9 +158,9 @@ where
 
     fn consume(&mut self, amount: usize) {
         let current_off = self.read_offset;
-        let current_page = current_off / PAGE_SIZE;
-
         let next_off = current_off + amount;
+
+        let current_page = current_off / PAGE_SIZE;
         let next_page = next_off / PAGE_SIZE;
 
         assert!(amount <= PAGE_SIZE);
