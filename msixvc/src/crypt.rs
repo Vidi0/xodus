@@ -1,6 +1,9 @@
 mod buffer;
 use buffer::PageBuffer;
 
+mod region;
+use region::{Region, RegionTable};
+
 mod xts;
 pub use xts::{TweakGenerator, decrypt_page_xts};
 
@@ -64,51 +67,6 @@ where
     }
 }
 
-#[derive(Clone, Debug)]
-pub struct Region<Units> {
-    pages: Range<u64>,
-    decryptor: Option<RegionDecryptor<Units>>,
-}
-
-#[derive(Debug, Error)]
-pub enum NewRegionError {
-    #[error("region page range is inverted: {0:?}")]
-    InvalidPageRange(Range<u64>),
-
-    #[error("expected {expected} data units to match page count, found {found}")]
-    InvalidDataUnitCount { expected: u64, found: u64 },
-}
-
-impl<Units> Region<Units>
-where
-    Units: AsRef<[u32]>,
-{
-    pub fn new(
-        pages: Range<u64>,
-        decryptor: Option<RegionDecryptor<Units>>,
-    ) -> Result<Self, NewRegionError> {
-        // Make sure the range makes sense.
-        if pages.end < pages.start {
-            return Err(NewRegionError::InvalidPageRange(pages));
-        }
-
-        let num_pages = pages.end - pages.start;
-
-        // If the decryptor provides data units, make sure there is one data unit for each page.
-        if let Some(dec) = &decryptor
-            && let data_units @ 1.. = dec.data_units.as_ref().len() as u64
-            && data_units != num_pages
-        {
-            return Err(NewRegionError::InvalidDataUnitCount {
-                expected: num_pages,
-                found: data_units,
-            });
-        }
-
-        Ok(Self { pages, decryptor })
-    }
-}
-
 #[derive(Debug)]
 pub struct DecryptorReader<R, Units> {
     /// The underlying reader, which spans the whole file.
@@ -118,8 +76,8 @@ pub struct DecryptorReader<R, Units> {
     /// of the inner reader).
     read_offset: usize,
 
-    /// List of each region: the indices of the pages it spans and its decryptor (if encrypted).
-    regions: Vec<Region<Units>>,
+    /// Table of all regions that this reader spans.
+    regions: RegionTable<Units>,
 
     /// Cache of the currently loaded page, used to decrypt whole pages at a time.
     buffer: PageBuffer,
@@ -136,64 +94,23 @@ where
     R: Read,
     Units: AsRef<[u32]>,
 {
-    pub fn new(
-        inner: R,
-        regions: Vec<Region<Units>>,
-    ) -> Result<Self, NewDecryptorReaderError<Units>> {
-        // All regions must be consecutive.
-        if regions
-            .array_windows()
-            .any(|[curr, next]| curr.pages.end != next.pages.start)
-        {
-            return Err(NewDecryptorReaderError::NonConsecutiveRegions(regions));
-        };
-
-        let mut reader = Self {
+    pub fn new(inner: R, regions: RegionTable<Units>) -> Self {
+        Self {
             inner,
             read_offset: 0,
             regions,
             buffer: PageBuffer::new(),
-        };
-
-        Ok(reader)
-    }
-
-    #[inline]
-    fn first_page(&self) -> u64 {
-        self.regions
-            .first()
-            .map(|r| r.pages.start)
-            .unwrap_or_default()
-    }
-
-    #[inline]
-    fn last_page(&self) -> u64 {
-        self.regions.last().map(|r| r.pages.end).unwrap_or_default()
-    }
-
-    #[inline]
-    fn reader_start(&self) -> u64 {
-        self.first_page() * PAGE_SIZE as u64
-    }
-
-    #[inline]
-    fn reader_end(&self) -> u64 {
-        self.last_page() * PAGE_SIZE as u64
-    }
-
-    #[inline]
-    fn reader_len(&self) -> u64 {
-        self.reader_end() - self.reader_start()
+        }
     }
 
     #[inline]
     fn is_finished(&self) -> bool {
-        self.read_offset as u64 >= self.reader_len()
+        self.read_offset as u64 >= self.regions.reader_len()
     }
 
     #[inline]
     fn current_page(&self) -> usize {
-        self.first_page() as usize + self.read_offset / PAGE_SIZE
+        self.regions.first_page() as usize + self.read_offset / PAGE_SIZE
     }
 
     fn next_page(&mut self) -> io::Result<()> {
@@ -207,14 +124,7 @@ where
         }
 
         let current_page = self.current_page() as u64;
-        let current_region = &self.regions[self
-            .regions
-            .binary_search_by(|r| match current_page {
-                p if p < r.pages.start => Ordering::Greater,
-                p if p >= r.pages.end => Ordering::Less,
-                _ => Ordering::Equal,
-            })
-            .expect("current page must be in some region")];
+        let current_region = self.regions.region_at(current_page);
 
         // Start the buffer refill process. The buffer will be marked as available
         // after the guard is dropped.
@@ -224,10 +134,7 @@ where
         self.inner.read_exact(&mut *guard)?;
 
         // Decrypt the new page.
-        if let Some(decryptor) = &current_region.decryptor {
-            let page_in_region = (current_page - current_region.pages.start) as usize;
-            decryptor.decrypt_at(page_in_region, &mut guard);
-        }
+        current_region.decrypt_at(current_page, &mut guard);
 
         Ok(())
     }
@@ -304,12 +211,12 @@ where
         let old_pos = self.read_offset as u64;
         let new_pos = match pos {
             SeekFrom::Start(n) => Some(n),
-            SeekFrom::End(n) => self.reader_len().checked_add_signed(n),
+            SeekFrom::End(n) => self.regions.reader_len().checked_add_signed(n),
             SeekFrom::Current(n) => old_pos.checked_add_signed(n),
         };
 
         let new_pos = match new_pos {
-            Some(pos) if pos <= self.reader_len() => pos,
+            Some(pos) if pos <= self.regions.reader_len() => pos,
             _ => {
                 return Err(io::Error::new(
                     io::ErrorKind::InvalidInput,
@@ -331,7 +238,7 @@ where
             // If the page is the next one, seeking can be avoided as the inner reader is always
             // positioned at the start of the next page.
             if new_page != old_page + 1 {
-                let absolute_start_new_page = start_new_page + self.reader_start();
+                let absolute_start_new_page = start_new_page + self.regions.reader_start();
                 self.inner.seek(SeekFrom::Start(absolute_start_new_page))?;
             }
 
