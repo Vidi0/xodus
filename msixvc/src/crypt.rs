@@ -236,18 +236,15 @@ where
 
         // If the page hasn't changed, don't modify the buffer.
         if new_page != old_page {
-            let start_new_page = new_page * PAGE_SIZE as u64;
+            self.buffer.clear();
 
             // If the page is the next one, seeking can be avoided as the inner reader is always
             // positioned at the start of the next page.
             if new_page != old_page + 1 {
                 let absolute_start_new_page =
-                    start_new_page + self.regions.pages().start * PAGE_SIZE as u64;
+                    (self.regions.pages().start + new_page) * PAGE_SIZE as u64;
                 self.inner.seek(SeekFrom::Start(absolute_start_new_page))?;
             }
-
-            self.read_offset = start_new_page as usize;
-            self.next_page()?;
         }
 
         self.read_offset = new_pos as usize;
