@@ -41,13 +41,13 @@ impl Deref for BufferRefillGuard<'_> {
     type Target = [u8; PAGE_SIZE];
 
     fn deref(&self) -> &Self::Target {
-        &*self.0.buffer
+        &self.0.buffer
     }
 }
 
 impl DerefMut for BufferRefillGuard<'_> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut *self.0.buffer
+        &mut self.0.buffer
     }
 }
 

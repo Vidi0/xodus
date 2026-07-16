@@ -226,7 +226,7 @@ where
         // Decrypt the new page.
         if let Some(decryptor) = &current_region.decryptor {
             let page_in_region = (current_page - current_region.pages.start) as usize;
-            decryptor.decrypt_at(page_in_region, &mut *guard);
+            decryptor.decrypt_at(page_in_region, &mut guard);
         }
 
         Ok(())
@@ -252,7 +252,7 @@ where
         self.next_page()?;
 
         // Return the new page, or an empty slice if the reader reached EOF.
-        Ok(self.buffer.get().map_or(&[], |buf| &*buf))
+        Ok(self.buffer.get().map_or(&[], |buf| buf))
     }
 
     fn consume(&mut self, amount: usize) {
