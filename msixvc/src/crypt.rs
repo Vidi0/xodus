@@ -115,9 +115,12 @@ where
         })
     }
 
+    /// Fill the internal buffer with the next page of data.
+    ///
+    /// The underlying reader must be positioned at the start of the page that will
+    /// be read. `self.read_offset` itself doesn't need to be page-aligned, it only
+    /// needs to be within the bounds of that page.
     fn next_page(&mut self) -> io::Result<()> {
-        assert!(self.read_offset.is_multiple_of(PAGE_SIZE));
-
         // If there are no remaining pages in this region, return without
         // filling the buffer.
         if self.is_finished() {
