@@ -115,6 +115,20 @@ where
         })
     }
 
+    /// [`Seek`] position of the inner reader (measured in pages).
+    fn inner_reader_pos(&self) -> usize {
+        // The inner reader is usually positioned at the start of the next page.
+        // However, when the current page hasn't been loaded yet (`self.buffer().is_none()`),
+        // the inner reader is placed at the start of the current page.
+
+        let current_page = self.current_page();
+
+        match self.buffer() {
+            Some(_) => current_page + 1,
+            None => current_page,
+        }
+    }
+
     /// Fill the internal buffer with the next page of data.
     ///
     /// The underlying reader must be positioned at the start of the page that will
@@ -231,23 +245,31 @@ where
         let old_page = old_pos / PAGE_SIZE as u64;
         let new_page = new_pos / PAGE_SIZE as u64;
 
-        // Seek to the start of the new page, decrypt it, and then set `read_offset`
-        // to the correct value.
-
         // If the page hasn't changed, don't modify the buffer.
-        if new_page != old_page {
-            self.buffer.clear();
-
-            // If the page is the next one, seeking can be avoided as the inner reader is always
-            // positioned at the start of the next page.
-            if new_page != old_page + 1 {
-                let absolute_start_new_page =
-                    (self.regions.pages().start + new_page) * PAGE_SIZE as u64;
-                self.inner.seek(SeekFrom::Start(absolute_start_new_page))?;
-            }
+        if new_page == old_page {
+            self.read_offset = new_pos as usize;
+            return Ok(new_pos);
         }
 
+        // Get the inner reader pos, to detect if we can avoid a seek.
+        let reader_pos = self.inner_reader_pos() as u64;
+
+        // Update the read offset pointer.
         self.read_offset = new_pos as usize;
+
+        // The page has changed, so the page buffer must be invalidated.
+        self.buffer.clear();
+
+        // The seek can be avoided if the reader is already positioned at the target offset.
+        let absolute_new_page = self.regions.pages().start + new_page;
+        if absolute_new_page == reader_pos as u64 {
+            return Ok(new_pos);
+        }
+
+        // Seek to the start of the new page
+        self.inner
+            .seek(SeekFrom::Start(absolute_new_page * PAGE_SIZE as u64))?;
+
         Ok(new_pos)
     }
 
