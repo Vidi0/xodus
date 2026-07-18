@@ -1,3 +1,5 @@
+#![expect(unused)]
+
 mod buffer;
 use buffer::PageBuffer;
 
