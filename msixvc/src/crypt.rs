@@ -119,6 +119,11 @@ where
     R: Read,
     Units: AsRef<[u32]>,
 {
+    /// Creates a new [`DecryptorReader`], which decrypts pages on-the-fly as they
+    /// are read from the underlying reader.
+    ///
+    /// `inner` must already be positioned at the start of the first region in
+    /// `regions`, i.e. at byte offset `regions.pages().start * PAGE_SIZE as u64`.
     pub fn new(inner: R, regions: RegionTable<Units>) -> Self {
         Self {
             inner,
