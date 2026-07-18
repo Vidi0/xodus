@@ -2,21 +2,17 @@ mod buffer;
 use buffer::PageBuffer;
 
 mod region;
-use region::{Region, RegionTable};
+pub use region::{Region, RegionTable};
 
 mod xts;
 pub use xts::{TweakGenerator, decrypt_page_xts};
 
 use crate::models::xvd::{PAGE_SIZE, XvcRegionId};
 
-use std::cmp::Ordering;
 use std::io::{self, BufRead, Read, Seek, SeekFrom};
-use std::iter;
-use std::range::Range;
 
-use aes::cipher::{BlockCipherDecrypt, BlockCipherEncrypt, KeyInit};
+use aes::cipher::KeyInit;
 use aes::{Aes128Dec, Aes128Enc};
-use thiserror::Error;
 use uuid::Uuid;
 
 /// A [`RegionDecryptor`] decrypts pages within an XVC region using AES-XTS.
@@ -116,6 +112,7 @@ where
     }
 
     /// [`Seek`] position of the inner reader (measured in pages).
+    #[inline]
     fn inner_reader_pos(&self) -> usize {
         // The inner reader is usually positioned at the start of the next page.
         // However, when the current page hasn't been loaded yet (`self.buffer().is_none()`),
@@ -262,7 +259,7 @@ where
 
         // The seek can be avoided if the reader is already positioned at the target offset.
         let absolute_new_page = self.regions.pages().start + new_page;
-        if absolute_new_page == reader_pos as u64 {
+        if absolute_new_page == reader_pos {
             return Ok(new_pos);
         }
 
