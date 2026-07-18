@@ -79,20 +79,7 @@ pub struct DecryptorReader<R, Units> {
     buffer: PageBuffer,
 }
 
-impl<R, Units> DecryptorReader<R, Units>
-where
-    R: Read,
-    Units: AsRef<[u32]>,
-{
-    pub fn new(inner: R, regions: RegionTable<Units>) -> Self {
-        Self {
-            inner,
-            read_offset: 0,
-            regions,
-            buffer: PageBuffer::new(),
-        }
-    }
-
+impl<R, Units> DecryptorReader<R, Units> {
     #[inline]
     fn is_finished(&self) -> bool {
         self.read_offset as u64 >= self.regions.reader_len()
@@ -123,6 +110,21 @@ where
         match self.buffer() {
             Some(_) => current_page + 1,
             None => current_page,
+        }
+    }
+}
+
+impl<R, Units> DecryptorReader<R, Units>
+where
+    R: Read,
+    Units: AsRef<[u32]>,
+{
+    pub fn new(inner: R, regions: RegionTable<Units>) -> Self {
+        Self {
+            inner,
+            read_offset: 0,
+            regions,
+            buffer: PageBuffer::new(),
         }
     }
 
@@ -218,7 +220,7 @@ where
 
 impl<R, Units> Seek for DecryptorReader<R, Units>
 where
-    R: Read + Seek,
+    R: Seek,
     Units: AsRef<[u32]>,
 {
     fn seek(&mut self, pos: SeekFrom) -> io::Result<u64> {

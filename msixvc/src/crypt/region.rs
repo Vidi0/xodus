@@ -107,7 +107,9 @@ where
             reader_len,
         })
     }
+}
 
+impl<Units> RegionTable<Units> {
     #[inline]
     pub fn pages(&self) -> Range<u64> {
         self.pages
