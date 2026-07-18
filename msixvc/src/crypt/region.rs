@@ -109,6 +109,17 @@ where
     }
 }
 
+impl<Units> TryFrom<Vec<Region<Units>>> for RegionTable<Units>
+where
+    Units: AsRef<[u32]>,
+{
+    type Error = NonConsecutiveRegionsError<Units>;
+
+    fn try_from(value: Vec<Region<Units>>) -> Result<Self, Self::Error> {
+        Self::new(value)
+    }
+}
+
 impl<Units> RegionTable<Units> {
     #[inline]
     pub fn pages(&self) -> Range<u64> {
