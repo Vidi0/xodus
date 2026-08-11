@@ -1,0 +1,8 @@
+[package]
+name = "msixvc_new"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+typenum = "1.20.1"
+generic-array = "1.4.4"
