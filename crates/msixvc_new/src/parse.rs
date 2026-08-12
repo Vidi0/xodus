@@ -13,6 +13,8 @@
 //! - [`parse`]
 //! - [`try_parse`]
 
+mod reader;
+
 use std::convert::Infallible;
 use std::ops::Sub;
 
