@@ -1,3 +1,19 @@
+//! Provides methods for easily parsing binary structures into Rust structs.
+//!
+//! The key struct in this module is [`BytesReader`], which is a wrapper over a
+//! byte array and stores its length as a generic parameter, thus preventing
+//! out-of-bounds reads at compile time. See its docs for more information.
+//!
+//! Rather than using [`BytesReader`] directly, structures that can be parsed
+//! from byte arrays should implement the [`BinaryParse`] or [`BinaryTryParse`]
+//! traits, which provide the corresponding method for parsing from an array
+//! for free.
+//!
+//! # See also
+//! - [`parse`]
+//! - [`try_parse`]
+
+use std::convert::Infallible;
 use std::ops::Sub;
 
 use generic_array::{ArrayLength, GenericArray};
@@ -87,4 +103,49 @@ where
 {
     let reader = BytesReader(array);
     f(reader).map(|(t, _reader)| t)
+}
+
+/// A trait implemented by structures which can be parsed from a byte array.
+pub trait BinaryParse: Sized {
+    type Size: ArrayLength;
+
+    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self, BytesReader<'a, U0>);
+
+    fn from_array<'a>(array: &'a GenericArray<u8, Self::Size>) -> Self {
+        parse(array, Self::parse)
+    }
+}
+
+/// A trait implemented by structures which can be parsed from a byte array in a
+/// fallible way.
+pub trait BinaryTryParse: Sized {
+    type Size: ArrayLength;
+    type Error;
+
+    fn try_parse<'a>(
+        r: BytesReader<'a, Self::Size>,
+    ) -> Result<(Self, BytesReader<'a, U0>), Self::Error>;
+
+    fn try_from_array<'a>(array: &'a GenericArray<u8, Self::Size>) -> Result<Self, Self::Error> {
+        try_parse(array, Self::try_parse)
+    }
+}
+
+impl<T> BinaryTryParse for T
+where
+    T: BinaryParse,
+{
+    type Size = T::Size;
+    // TODO: replace with never type once it is stabilized.
+    type Error = Infallible;
+
+    fn try_parse<'a>(
+        r: BytesReader<'a, Self::Size>,
+    ) -> Result<(Self, BytesReader<'a, U0>), Self::Error> {
+        Ok(Self::parse(r))
+    }
+
+    fn try_from_array<'a>(array: &'a GenericArray<u8, Self::Size>) -> Result<Self, Self::Error> {
+        Ok(parse(array, Self::parse))
+    }
 }
