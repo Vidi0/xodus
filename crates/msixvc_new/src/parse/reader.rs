@@ -15,8 +15,8 @@ macro_rules! reader_method {
         where
             Size: Sub<$n, Output: ArrayLength>,
         {
-            let (array, r) = self.array::<$n>();
-            let $bytes = array.into();
+            let (array, r) = self.advance::<$n>();
+            let $bytes = (*array).into();
 
             ($body, r)
         }
@@ -59,7 +59,7 @@ impl<'a, Size: ArrayLength> BytesReader<'a, Size> {
         N: ArrayLength,
         Size: Sub<N, Output: ArrayLength>,
     {
-        let (magic, r) = self.array_ref::<N>();
+        let (magic, r) = self.advance::<N>();
         if magic == expected { Ok(r) } else { Err(magic) }
     }
 }

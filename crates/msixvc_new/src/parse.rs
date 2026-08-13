@@ -26,7 +26,7 @@ use typenum::{Diff, U0};
 /// fixed-length fields from it in order.
 ///
 /// The fundamental operation on which every method of [`BytesReader`] is based
-/// is [`BytesReader::array_ref`]. This function consumes the reader and splits
+/// is [`BytesReader::advance`]. This function consumes the reader and splits
 /// its underlying array in two at at the index `N`, which is provided at compile
 /// time. It returns a reference to an array with a length of `N` and a new
 /// [`BytesReader`], which wraps the remaining bytes. If there are not enough bytes
@@ -42,29 +42,17 @@ use typenum::{Diff, U0};
 pub struct BytesReader<'a, Size: ArrayLength>(&'a GenericArray<u8, Size>);
 
 impl<'a, Size: ArrayLength> BytesReader<'a, Size> {
-    /// Gets a reference to an array containing the first `N` bytes of the reader.
+    /// Advances the reader by `N` bytes, returning a reference to the first `N`
+    /// bytes as a reference to a [`GenericArray<u8, N>`].
     ///
     /// Returns a new updated reader. See [`BytesReader`] for more information.
-    pub fn array_ref<N>(self) -> (&'a GenericArray<u8, N>, BytesReader<'a, Diff<Size, N>>)
+    pub fn advance<N>(self) -> (&'a GenericArray<u8, N>, BytesReader<'a, Diff<Size, N>>)
     where
         N: ArrayLength,
         Size: Sub<N, Output: ArrayLength>,
     {
         let (head, tail) = Split::split(self.0);
         (head, BytesReader(tail))
-    }
-
-    /// Gets an array containing the first `N` bytes of the reader.
-    ///
-    /// Returns a new updated reader. See [`BytesReader`] for more information.
-    pub fn array<N>(self) -> (GenericArray<u8, N>, BytesReader<'a, Diff<Size, N>>)
-    where
-        N: ArrayLength,
-        Size: Sub<N, Output: ArrayLength>,
-        GenericArray<u8, N>: Copy,
-    {
-        let (array, r) = self.array_ref();
-        (*array, r)
     }
 }
 
