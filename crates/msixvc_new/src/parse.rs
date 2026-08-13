@@ -19,7 +19,6 @@
 mod reader;
 pub mod structs;
 
-use std::convert::Infallible;
 use std::ops::Sub;
 
 use generic_array::sequence::Split;
@@ -119,25 +118,6 @@ pub trait BinaryTryParse: Sized {
 
     fn try_from_array<'a>(array: &'a GenericArray<u8, Self::Size>) -> Result<Self, Self::Error> {
         try_parse(array, Self::try_parse)
-    }
-}
-
-impl<T> BinaryTryParse for T
-where
-    T: BinaryParse,
-{
-    type Size = T::Size;
-    // TODO: replace with never type once it is stabilized.
-    type Error = Infallible;
-
-    fn try_parse<'a>(
-        r: BytesReader<'a, Self::Size>,
-    ) -> Result<(Self, BytesReader<'a, U0>), Self::Error> {
-        Ok(Self::parse(r))
-    }
-
-    fn try_from_array<'a>(array: &'a GenericArray<u8, Self::Size>) -> Result<Self, Self::Error> {
-        Ok(parse(array, Self::parse))
     }
 }
 
