@@ -13,35 +13,6 @@ use generic_array::{ArrayLength, ConstArrayLength, IntoArrayLength};
 use typenum::{Const, Diff, U1, U2, U4, U8, U16};
 use uuid::Uuid;
 
-impl<'a, Size: ArrayLength> BytesReader<'a, Size> {
-    /// Gets a reference to an array containing the first `N` bytes of the reader.
-    pub fn array_ref<const N: usize>(
-        self,
-    ) -> (
-        &'a [u8; N],
-        BytesReader<'a, Diff<Size, ConstArrayLength<N>>>,
-    )
-    where
-        Const<N>: IntoArrayLength,
-        Size: Sub<ConstArrayLength<N>, Output: ArrayLength>,
-    {
-        let (head, reader) = self.advance();
-        (AsRef::<[u8; N]>::as_ref(head), reader)
-    }
-
-    /// Gets an array containing the first `N` bytes of the reader.
-    pub fn array<const N: usize>(
-        self,
-    ) -> ([u8; N], BytesReader<'a, Diff<Size, ConstArrayLength<N>>>)
-    where
-        Const<N>: IntoArrayLength,
-        Size: Sub<ConstArrayLength<N>, Output: ArrayLength>,
-    {
-        let (head, reader) = self.advance();
-        (*AsRef::<[u8; N]>::as_ref(head), reader)
-    }
-}
-
 /// Converts a Microsoft FILETIME (number of 100ns intervals since 1601-01-01 UTC)
 /// into a [`chrono::DateTime`]
 const fn microsoft_filetime(filetime: i64) -> DateTime<chrono::Utc> {

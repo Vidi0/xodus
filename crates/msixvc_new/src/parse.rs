@@ -22,8 +22,8 @@ pub mod structs;
 use std::ops::{Div, Mul, Sub};
 
 use generic_array::sequence::{FallibleGenericSequence, GenericSequence, Split, Unflatten};
-use generic_array::{ArrayLength, GenericArray};
-use typenum::{Diff, Prod, U0};
+use generic_array::{ArrayLength, GenericArray, ConstArrayLength, IntoArrayLength};
+use typenum::{Diff, Prod, U0, Const};
 
 /// A reader that wraps a reference to a byte array and provides methods for parsing
 /// fixed-length fields from it in order.
@@ -56,6 +56,33 @@ impl<'a, Size: ArrayLength> BytesReader<'a, Size> {
     {
         let (head, tail) = Split::split(self.0);
         (head, BytesReader(tail))
+    }
+
+    /// Gets a reference to an array containing the first `N` bytes of the reader.
+    pub fn array_ref<const N: usize>(
+        self,
+    ) -> (
+        &'a [u8; N],
+        BytesReader<'a, Diff<Size, ConstArrayLength<N>>>,
+    )
+    where
+        Const<N>: IntoArrayLength,
+        Size: Sub<ConstArrayLength<N>, Output: ArrayLength>,
+    {
+        let (head, reader) = self.advance();
+        (AsRef::<[u8; N]>::as_ref(head), reader)
+    }
+
+    /// Gets an array containing the first `N` bytes of the reader.
+    pub fn array<const N: usize>(
+        self,
+    ) -> ([u8; N], BytesReader<'a, Diff<Size, ConstArrayLength<N>>>)
+    where
+        Const<N>: IntoArrayLength,
+        Size: Sub<ConstArrayLength<N>, Output: ArrayLength>,
+    {
+        let (head, reader) = self.advance();
+        (*AsRef::<[u8; N]>::as_ref(head), reader)
     }
 }
 
