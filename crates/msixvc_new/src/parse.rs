@@ -18,6 +18,7 @@ mod reader;
 use std::convert::Infallible;
 use std::ops::Sub;
 
+use generic_array::sequence::Split;
 use generic_array::{ArrayLength, GenericArray};
 use typenum::{Diff, U0};
 
@@ -49,12 +50,8 @@ impl<'a, Size: ArrayLength> BytesReader<'a, Size> {
         N: ArrayLength,
         Size: Sub<N, Output: ArrayLength>,
     {
-        let (head, tail) = self.0.as_slice().split_at(N::USIZE);
-
-        (
-            GenericArray::from_slice(head),
-            BytesReader(GenericArray::from_slice(tail)),
-        )
+        let (head, tail) = Split::split(self.0);
+        (head, BytesReader(tail))
     }
 
     /// Gets an array containing the first `N` bytes of the reader.
