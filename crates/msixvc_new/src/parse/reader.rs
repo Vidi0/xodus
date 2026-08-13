@@ -9,7 +9,7 @@ use super::structs::Version;
 use std::ops::Sub;
 
 use chrono::DateTime;
-use generic_array::{ArrayLength, ConstArrayLength, GenericArray, IntoArrayLength};
+use generic_array::{ArrayLength, ConstArrayLength, IntoArrayLength};
 use typenum::{Const, Diff, U1, U2, U4, U8, U16};
 use uuid::Uuid;
 
@@ -83,15 +83,15 @@ impl<'a, Size: ArrayLength> BytesReader<'a, Size> {
         microsoft_filetime(i64::from_le_bytes(b))
     });
 
-    pub fn magic<N>(
+    pub fn magic<const N: usize>(
         self,
-        expected: &GenericArray<u8, N>,
-    ) -> Result<BytesReader<'a, Diff<Size, N>>, &'a GenericArray<u8, N>>
+        expected: &[u8; N],
+    ) -> Result<BytesReader<'a, Diff<Size, ConstArrayLength<N>>>, &'a [u8; N]>
     where
-        N: ArrayLength,
-        Size: Sub<N, Output: ArrayLength>,
+        Const<N>: IntoArrayLength,
+        Size: Sub<ConstArrayLength<N>, Output: ArrayLength>,
     {
-        let (magic, r) = self.advance::<N>();
+        let (magic, r) = self.array_ref::<N>();
         if magic == expected { Ok(r) } else { Err(magic) }
     }
 }
