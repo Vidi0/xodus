@@ -175,7 +175,7 @@ where
     T::Size: Mul<N, Output: ArrayLength>,
     // These look complicated, but they are obvious.
     <T::Size as Mul<N>>::Output: Sub<Prod<T::Size, N>, Output = U0>,
-    <T::Size as Mul<N>>::Output: Div<T::Size, Output = T::Size>,
+    <T::Size as Mul<N>>::Output: Div<T::Size, Output = N>,
 {
     type Size = Prod<T::Size, N>;
 
@@ -192,7 +192,7 @@ where
     T: BinaryTryParse,
     T::Size: Mul<N, Output: ArrayLength>,
     <T::Size as Mul<N>>::Output: Sub<Prod<T::Size, N>, Output = U0>,
-    <T::Size as Mul<N>>::Output: Div<T::Size, Output = T::Size>,
+    <T::Size as Mul<N>>::Output: Div<T::Size, Output = N>,
 {
     type Size = Prod<T::Size, N>;
     type Error = T::Error;
@@ -214,7 +214,7 @@ where
     T::Size: Mul<ConstArrayLength<N>, Output: ArrayLength>,
     <T::Size as Mul<ConstArrayLength<N>>>::Output:
         Sub<Prod<T::Size, ConstArrayLength<N>>, Output = U0>,
-    <T::Size as Mul<ConstArrayLength<N>>>::Output: Div<T::Size, Output = T::Size>,
+    <T::Size as Mul<ConstArrayLength<N>>>::Output: Div<T::Size, Output = ConstArrayLength<N>>,
 {
     type Size = Prod<T::Size, ConstArrayLength<N>>;
 
@@ -231,7 +231,7 @@ where
     T::Size: Mul<ConstArrayLength<N>, Output: ArrayLength>,
     <T::Size as Mul<ConstArrayLength<N>>>::Output:
         Sub<Prod<T::Size, ConstArrayLength<N>>, Output = U0>,
-    <T::Size as Mul<ConstArrayLength<N>>>::Output: Div<T::Size, Output = T::Size>,
+    <T::Size as Mul<ConstArrayLength<N>>>::Output: Div<T::Size, Output = ConstArrayLength<N>>,
 {
     type Size = Prod<T::Size, ConstArrayLength<N>>;
     type Error = T::Error;
