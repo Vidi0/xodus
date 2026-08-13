@@ -22,8 +22,8 @@ pub mod structs;
 use std::ops::{Div, Mul, Sub};
 
 use generic_array::sequence::{FallibleGenericSequence, GenericSequence, Split, Unflatten};
-use generic_array::{ArrayLength, GenericArray, ConstArrayLength, IntoArrayLength};
-use typenum::{Diff, Prod, U0, Const};
+use generic_array::{ArrayLength, ConstArrayLength, GenericArray, IntoArrayLength};
+use typenum::{Const, Diff, Prod, U0};
 
 /// A reader that wraps a reference to a byte array and provides methods for parsing
 /// fixed-length fields from it in order.
@@ -191,7 +191,6 @@ where
     N: ArrayLength,
     T: BinaryTryParse,
     T::Size: Mul<N, Output: ArrayLength>,
-    // These look complicated, but they are obvious.
     <T::Size as Mul<N>>::Output: Sub<Prod<T::Size, N>, Output = U0>,
     <T::Size as Mul<N>>::Output: Div<T::Size, Output = T::Size>,
 {
@@ -205,5 +204,42 @@ where
         let chunks = bytes.unflatten();
         let Ok(result) = GenericArray::try_generate(|i| T::try_from_array(&chunks[i]));
         result.map(|arr| (arr, r))
+    }
+}
+
+impl<T, const N: usize> BinaryParse for [T; N]
+where
+    Const<N>: IntoArrayLength,
+    T: BinaryParse,
+    T::Size: Mul<ConstArrayLength<N>, Output: ArrayLength>,
+    <T::Size as Mul<ConstArrayLength<N>>>::Output:
+        Sub<Prod<T::Size, ConstArrayLength<N>>, Output = U0>,
+    <T::Size as Mul<ConstArrayLength<N>>>::Output: Div<T::Size, Output = T::Size>,
+{
+    type Size = Prod<T::Size, ConstArrayLength<N>>;
+
+    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self, BytesReader<'a, U0>) {
+        let (array, r) = <GenericArray<T, ConstArrayLength<N>> as BinaryParse>::parse(r);
+        (array.into_array(), r)
+    }
+}
+
+impl<T, const N: usize> BinaryTryParse for [T; N]
+where
+    Const<N>: IntoArrayLength,
+    T: BinaryTryParse,
+    T::Size: Mul<ConstArrayLength<N>, Output: ArrayLength>,
+    <T::Size as Mul<ConstArrayLength<N>>>::Output:
+        Sub<Prod<T::Size, ConstArrayLength<N>>, Output = U0>,
+    <T::Size as Mul<ConstArrayLength<N>>>::Output: Div<T::Size, Output = T::Size>,
+{
+    type Size = Prod<T::Size, ConstArrayLength<N>>;
+    type Error = T::Error;
+
+    fn try_parse<'a>(
+        r: BytesReader<'a, Self::Size>,
+    ) -> Result<(Self, BytesReader<'a, U0>), Self::Error> {
+        <GenericArray<T, ConstArrayLength<N>> as BinaryTryParse>::try_parse(r)
+            .map(|(array, r)| (array.into_array(), r))
     }
 }
