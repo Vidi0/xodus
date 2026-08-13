@@ -7,9 +7,12 @@
 //! Rather than using [`BytesReader`] directly, structures that can be parsed
 //! from byte arrays should implement the [`BinaryParse`] or [`BinaryTryParse`]
 //! traits, which provide the corresponding method for parsing from an array
-//! for free.
+//! for free. Furthermore, types implementing these traits can also be parsed
+//! directly from a [`BytesReader`] using [`BytesReader::read`] or
+//! [`BytesReader::try_read`].
 //!
 //! # See also
+//! - [`BytesReader`]
 //! - [`parse`]
 //! - [`try_parse`]
 

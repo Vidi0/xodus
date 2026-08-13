@@ -1,4 +1,7 @@
 //! This module implements methods for [`BytesReader`] for easier parsing.
+//!
+//! These methods are not intended for general use, as they provide only one of
+//! the many ways to parse each type, the one used in `MSIXVC` binaries.
 
 use super::BytesReader;
 use super::structs::Version;
