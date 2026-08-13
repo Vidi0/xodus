@@ -1,6 +1,7 @@
 //! This module implements methods for [`BytesReader`] for easier parsing.
 
 use super::BytesReader;
+use super::structs::Version;
 
 use std::ops::Sub;
 
@@ -73,6 +74,7 @@ impl<'a, Size: ArrayLength> BytesReader<'a, Size> {
     reader_method!(u64_le, u64, U8, 8, |b| u64::from_le_bytes(b));
     reader_method!(i64_le, i64, U8, 8, |b| i64::from_le_bytes(b));
 
+    reader_method!(version, Version, U8, 8, |b| Version::from_bytes(b));
     reader_method!(uuid, Uuid, U16, 16, |b| Uuid::from_bytes_le(b));
     reader_method!(filetime, DateTime<chrono::Utc>, U8, 8, |b| {
         microsoft_filetime(i64::from_le_bytes(b))

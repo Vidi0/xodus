@@ -14,6 +14,7 @@
 //! - [`try_parse`]
 
 mod reader;
+pub mod structs;
 
 use std::convert::Infallible;
 use std::ops::Sub;
