@@ -19,11 +19,11 @@
 mod reader;
 pub mod structs;
 
-use std::ops::Sub;
+use std::ops::{Div, Mul, Sub};
 
-use generic_array::sequence::Split;
+use generic_array::sequence::{FallibleGenericSequence, GenericSequence, Split, Unflatten};
 use generic_array::{ArrayLength, GenericArray};
-use typenum::{Diff, U0};
+use typenum::{Diff, Prod, U0};
 
 /// A reader that wraps a reference to a byte array and provides methods for parsing
 /// fixed-length fields from it in order.
@@ -138,5 +138,45 @@ impl<'a, Size: ArrayLength> BytesReader<'a, Size> {
     {
         let (head, reader) = self.advance::<T::Size>();
         T::try_from_array(head).map(|t| (t, reader))
+    }
+}
+
+impl<T, N> BinaryParse for GenericArray<T, N>
+where
+    N: ArrayLength,
+    T: BinaryParse,
+    T::Size: Mul<N, Output: ArrayLength>,
+    // These look complicated, but they are obvious.
+    <T::Size as Mul<N>>::Output: Sub<Prod<T::Size, N>, Output = U0>,
+    <T::Size as Mul<N>>::Output: Div<T::Size, Output = T::Size>,
+{
+    type Size = Prod<T::Size, N>;
+
+    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self, BytesReader<'a, U0>) {
+        let (bytes, r) = r.advance::<Self::Size>();
+        let chunks = bytes.unflatten();
+        (GenericArray::generate(|i| T::from_array(&chunks[i])), r)
+    }
+}
+
+impl<T, N> BinaryTryParse for GenericArray<T, N>
+where
+    N: ArrayLength,
+    T: BinaryTryParse,
+    T::Size: Mul<N, Output: ArrayLength>,
+    // These look complicated, but they are obvious.
+    <T::Size as Mul<N>>::Output: Sub<Prod<T::Size, N>, Output = U0>,
+    <T::Size as Mul<N>>::Output: Div<T::Size, Output = T::Size>,
+{
+    type Size = Prod<T::Size, N>;
+    type Error = T::Error;
+
+    fn try_parse<'a>(
+        r: BytesReader<'a, Self::Size>,
+    ) -> Result<(Self, BytesReader<'a, U0>), Self::Error> {
+        let (bytes, r) = r.advance::<Self::Size>();
+        let chunks = bytes.unflatten();
+        let Ok(result) = GenericArray::try_generate(|i| T::try_from_array(&chunks[i]));
+        result.map(|arr| (arr, r))
     }
 }
