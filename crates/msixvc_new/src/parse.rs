@@ -137,3 +137,23 @@ where
         Ok(parse(array, Self::parse))
     }
 }
+
+impl<'a, Size: ArrayLength> BytesReader<'a, Size> {
+    pub fn read<T>(self) -> (T, BytesReader<'a, Diff<Size, T::Size>>)
+    where
+        T: BinaryParse,
+        Size: Sub<T::Size, Output: ArrayLength>,
+    {
+        let (head, reader) = self.advance::<T::Size>();
+        (T::from_array(head), reader)
+    }
+
+    pub fn try_read<T>(self) -> Result<(T, BytesReader<'a, Diff<Size, T::Size>>), T::Error>
+    where
+        T: BinaryTryParse,
+        Size: Sub<T::Size, Output: ArrayLength>,
+    {
+        let (head, reader) = self.advance::<T::Size>();
+        T::try_from_array(head).map(|t| (t, reader))
+    }
+}
