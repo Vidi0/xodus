@@ -38,18 +38,6 @@ impl<'a, Size: ArrayLength> BytesReader<'a, Size> {
     }
 }
 
-macro_rules! reader_method {
-    ($name:ident, $ret:ty, $n_ty:ty, $n:literal, |$bytes:ident| $body:expr) => {
-        pub fn $name(self) -> ($ret, BytesReader<'a, Diff<Size, $n_ty>>)
-        where
-            Size: Sub<$n_ty, Output: ArrayLength>,
-        {
-            let ($bytes, reader) = self.array::<$n>();
-            ($body, reader)
-        }
-    };
-}
-
 /// Converts a Microsoft FILETIME (number of 100ns intervals since 1601-01-01 UTC)
 /// into a [`chrono::DateTime`]
 const fn microsoft_filetime(filetime: i64) -> DateTime<chrono::Utc> {
@@ -61,6 +49,18 @@ const fn microsoft_filetime(filetime: i64) -> DateTime<chrono::Utc> {
 
     let unix_nanos = (filetime - FILETIME_TO_UNIX) * 100;
     DateTime::from_timestamp_nanos(unix_nanos)
+}
+
+macro_rules! reader_method {
+    ($name:ident, $ret:ty, $n_ty:ty, $n:literal, |$bytes:ident| $body:expr) => {
+        pub fn $name(self) -> ($ret, BytesReader<'a, Diff<Size, $n_ty>>)
+        where
+            Size: Sub<$n_ty, Output: ArrayLength>,
+        {
+            let ($bytes, reader) = self.array::<$n>();
+            ($body, reader)
+        }
+    };
 }
 
 impl<'a, Size: ArrayLength> BytesReader<'a, Size> {
