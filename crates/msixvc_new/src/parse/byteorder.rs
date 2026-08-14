@@ -1,8 +1,8 @@
 //! Endian-aware integer parsers implementing [`BinaryParse`].
 //!
 //! [`Le<T>`] and [`Be<T>`] are zero-sized marker types that implement
-//! [`BinaryParse`] for every primitive integer, parsing `T` from its
-//! little-endian or big-endian representation, respectively.
+//! [`BinaryParse`] for every multi-byte primitive integer, parsing `T` from
+//! its little-endian or big-endian representation, respectively.
 
 use super::{BinaryParse, BytesReader};
 
@@ -41,8 +41,6 @@ macro_rules! impl_le_be {
     };
 }
 
-impl_le_be!(u8, 1);
-impl_le_be!(i8, 1);
 impl_le_be!(u16, 2);
 impl_le_be!(i16, 2);
 impl_le_be!(u32, 4);
@@ -56,8 +54,6 @@ impl_le_be!(i128, 16);
 pub mod little_endian {
     use super::Le;
 
-    pub type U8 = Le<u8>;
-    pub type I8 = Le<i8>;
     pub type U16 = Le<u16>;
     pub type I16 = Le<i16>;
     pub type U32 = Le<u32>;
@@ -72,8 +68,6 @@ pub mod little_endian {
 pub mod big_endian {
     use super::Be;
 
-    pub type U8 = Be<u8>;
-    pub type I8 = Be<i8>;
     pub type U16 = Be<u16>;
     pub type I16 = Be<i16>;
     pub type U32 = Be<u32>;
