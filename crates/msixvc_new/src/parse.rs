@@ -89,13 +89,17 @@ impl<'a, Size: ArrayLength> BytesReader<'a, Size> {
     pub fn magic<const N: usize>(
         self,
         expected: &[u8; N],
-    ) -> Result<BytesReader<'a, Diff<Size, ConstArrayLength<N>>>, &'a [u8; N]>
+    ) -> Result<BytesReader<'a, Diff<Size, ConstArrayLength<N>>>, [u8; N]>
     where
         Const<N>: IntoArrayLength,
         Size: Sub<ConstArrayLength<N>, Output: ArrayLength>,
     {
         let (magic, r) = self.array_ref::<N>();
-        if magic == expected { Ok(r) } else { Err(magic) }
+        if magic == expected {
+            Ok(r)
+        } else {
+            Err(*magic)
+        }
     }
 }
 

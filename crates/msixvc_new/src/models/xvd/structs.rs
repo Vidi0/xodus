@@ -87,10 +87,7 @@ impl BinaryTryParse for XvdHeader {
     ) -> Result<(Self, BytesReader<'a, typenum::U0>), Self::Error> {
         let (signature, r) = r.array::<0x200>();
 
-        let r = match r.magic(&Self::MAGIC) {
-            Ok(r) => r,
-            Err(magic) => return Err(Self::Error::InvalidMagic(*magic)),
-        };
+        let r = r.magic(Self::MAGIC).map_err(Self::Error::InvalidMagic)?;
 
         let (volume_flags, r) = r.read::<XvdVolumeFlags>();
         let (format_version, r) = r.read::<U32>();
@@ -605,10 +602,7 @@ impl BinaryTryParse for XvdSegmentMetadataHeader {
     fn try_parse<'a>(
         r: BytesReader<'a, Self::Size>,
     ) -> Result<(Self::Output, BytesReader<'a, typenum::U0>), Self::Error> {
-        let r = match r.magic(Self::MAGIC) {
-            Ok(r) => r,
-            Err(magic) => return Err(Self::Error::InvalidMagic(*magic)),
-        };
+        let r = r.magic(Self::MAGIC).map_err(Self::Error::InvalidMagic)?;
 
         let (version0, r) = r.read::<U32>();
         let (version1, r) = r.read::<U32>();
