@@ -10,7 +10,7 @@ use crate::parse::{BinaryParse, BinaryTryParse, BytesReader};
 use chrono::DateTime;
 use num_enum::TryFromPrimitiveError;
 use typenum::{
-    Diff, Sum, U1 as T1, U12 as T12, U16 as T16, U24 as T24, U100 as T100, U128 as T128,
+    Diff, Sum, U1 as T1, U2 as T2, U12 as T12, U16 as T16, U24 as T24, U100 as T100, U128 as T128,
     U392 as T392, U528 as T528, U600 as T600, U852 as T852, U2048 as T2048, U4096 as T4096,
 };
 use uuid::Uuid;
@@ -395,6 +395,16 @@ impl XvcKeyId {
     }
 }
 
+impl BinaryParse for XvcKeyId {
+    type Output = Self;
+    type Size = T2;
+
+    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, BytesReader<'a, typenum::U0>) {
+        let (key_id, r) = r.read::<U16>();
+        (Self::new(key_id), r)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct XvcRegionHeader {
     pub region_id: XvcRegionId,
@@ -428,9 +438,7 @@ impl BinaryTryParse for XvcRegionHeader {
     ) -> Result<(Self::Output, BytesReader<'a, typenum::U0>), Self::Error> {
         let (region_id, r) = r.read::<XvcRegionId>();
 
-        let (key_id, r) = r.read::<U16>();
-        let key_id = XvcKeyId::new(key_id);
-
+        let (key_id, r) = r.read::<XvcKeyId>();
         let (_padding6, r) = r.read::<U16>();
 
         let (flags, r) = r.read::<XvcRegionFlags>();
