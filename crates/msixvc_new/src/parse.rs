@@ -58,21 +58,6 @@ impl<'a, Size: ArrayLength> BytesReader<'a, Size> {
         (head, BytesReader(tail))
     }
 
-    /// Gets a reference to an array containing the first `N` bytes of the reader.
-    pub fn array_ref<const N: usize>(
-        self,
-    ) -> (
-        &'a [u8; N],
-        BytesReader<'a, Diff<Size, ConstArrayLength<N>>>,
-    )
-    where
-        Const<N>: IntoArrayLength,
-        Size: Sub<ConstArrayLength<N>, Output: ArrayLength>,
-    {
-        let (head, reader) = self.advance();
-        (AsRef::<[u8; N]>::as_ref(head), reader)
-    }
-
     /// Gets an array containing the first `N` bytes of the reader.
     pub fn array<const N: usize>(
         self,
@@ -94,11 +79,11 @@ impl<'a, Size: ArrayLength> BytesReader<'a, Size> {
         Const<N>: IntoArrayLength,
         Size: Sub<ConstArrayLength<N>, Output: ArrayLength>,
     {
-        let (magic, r) = self.array_ref::<N>();
-        if magic == expected {
+        let (magic, r) = self.array::<N>();
+        if magic == *expected {
             Ok(r)
         } else {
-            Err(*magic)
+            Err(magic)
         }
     }
 }
