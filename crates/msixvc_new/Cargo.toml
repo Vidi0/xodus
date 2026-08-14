@@ -6,5 +6,5 @@ edition = "2024"
 [dependencies]
 chrono = { workspace = true }
 uuid = "1.23.1"
-typenum = "1.20.1"
+typenum = { version = "1.20.1", features = ["const-generics"] }
 generic-array = "1.4.4"
