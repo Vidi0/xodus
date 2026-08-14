@@ -23,7 +23,7 @@ use std::ops::{Div, Mul, Sub};
 
 use generic_array::sequence::{FallibleGenericSequence, GenericSequence, Split, Unflatten};
 use generic_array::{ArrayLength, ConstArrayLength, GenericArray, IntoArrayLength};
-use typenum::{Const, Diff, Prod, U0};
+use typenum::{Const, Diff, Prod, U0, U1};
 
 /// A reader that wraps a reference to a byte array and provides methods for parsing
 /// fixed-length fields from it in order.
@@ -183,6 +183,26 @@ impl<'a, Size: ArrayLength> BytesReader<'a, Size> {
     {
         let (head, reader) = self.advance::<T::Size>();
         T::try_from_array(head).map(|t| (t, reader))
+    }
+}
+
+impl BinaryParse for u8 {
+    type Output = u8;
+    type Size = U1;
+
+    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, BytesReader<'a, U0>) {
+        let (bytes, r) = r.array();
+        (u8::from_ne_bytes(bytes), r)
+    }
+}
+
+impl BinaryParse for i8 {
+    type Output = i8;
+    type Size = U1;
+
+    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, BytesReader<'a, U0>) {
+        let (bytes, r) = r.array();
+        (i8::from_ne_bytes(bytes), r)
     }
 }
 
