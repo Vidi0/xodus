@@ -92,9 +92,7 @@ impl BinaryTryParse for XvdHeader {
             Err(magic) => return Err(XvdHeaderParseError::InvalidMagic(*magic)),
         };
 
-        let (volume_flags, r) = r.read::<U32>();
-        let volume_flags = XvdVolumeFlags::from_bits_retain(volume_flags);
-
+        let (volume_flags, r) = r.read::<XvdVolumeFlags>();
         let (format_version, r) = r.read::<U32>();
         let (file_time_created, r) = r.read::<Filetime>();
         let (drive_size, r) = r.read::<U64>();
@@ -134,8 +132,7 @@ impl BinaryTryParse for XvdHeader {
         let (pe_catalogs, r) = r.array::<0x80>();
 
         let (writeable_expiration_date, r) = r.read::<U32>();
-        let (writeable_policy_flags, r) = r.read::<U32>();
-        let writeable_policy_flags = WriteablePolicyFlags::from_bits_retain(writeable_policy_flags);
+        let (writeable_policy_flags, r) = r.read::<WriteablePolicyFlags>();
 
         let (persistent_local_storage_size, r) = r.read::<U32>();
         let (mutable_page_count, r) = r.read::<u8>();
@@ -284,8 +281,7 @@ impl BinaryParse for XvcInfo {
         let (version, r) = r.read::<U32>();
         let (region_count, r) = r.read::<U32>();
 
-        let (flags, r) = r.read::<U32>();
-        let flags = XvcInfoFlags::from_bits_retain(flags);
+        let (flags, r) = r.read::<XvcInfoFlags>();
 
         let (_paddingd1c, r) = r.read::<U16>();
         let (key_count, r) = r.read::<U16>();
@@ -445,8 +441,7 @@ impl BinaryTryParse for XvcRegionHeader {
 
         let (_padding6, r) = r.read::<U16>();
 
-        let (flags, r) = r.read::<U32>();
-        let flags = XvcRegionFlags::from_bits_retain(flags);
+        let (flags, r) = r.read::<XvcRegionFlags>();
 
         let (first_segment_index, r) = r.read::<U32>();
         let (description, r) = r.read::<[U16; 0x20]>();
@@ -499,7 +494,7 @@ impl BinaryParse for XvcRegionPresenceInfo {
 
         (
             Self {
-                flags: XvcRegionPresenceInfoFlags::from_bits_retain(byte),
+                flags: XvcRegionPresenceInfoFlags::from_array(&[byte].into()),
                 discnum: byte >> 4,
             },
             r,
@@ -652,9 +647,7 @@ impl BinaryParse for XvdSegmentMetadataSegment {
     type Size = T16;
 
     fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, BytesReader<'a, typenum::U0>) {
-        let (flags, r) = r.read::<U16>();
-        let flags = XvdSegmentMetadataSegmentFlags::from_bits_retain(flags);
-
+        let (flags, r) = r.read::<XvdSegmentMetadataSegmentFlags>();
         let (path_length, r) = r.read::<U16>();
         let (path_offset, r) = r.read::<U32>();
         let (filesize, r) = r.read::<U64>();
