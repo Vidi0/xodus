@@ -122,34 +122,39 @@ where
     f(reader).map(|(t, _reader)| t)
 }
 
-/// A trait implemented by structures which can be parsed from a byte array.
+/// A trait implemented by types that describe how to parse a value from a byte
+/// array.
 pub trait BinaryParse: Sized {
+    type Output;
     type Size: ArrayLength;
 
-    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self, BytesReader<'a, U0>);
+    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, BytesReader<'a, U0>);
 
-    fn from_array<'a>(array: &'a GenericArray<u8, Self::Size>) -> Self {
+    fn from_array<'a>(array: &'a GenericArray<u8, Self::Size>) -> Self::Output {
         parse(array, Self::parse)
     }
 }
 
-/// A trait implemented by structures which can be parsed from a byte array in a
-/// fallible way.
+/// A trait implemented by types that describe how to parse a value from a byte
+/// array in a fallible way.
 pub trait BinaryTryParse: Sized {
+    type Output;
     type Size: ArrayLength;
     type Error;
 
     fn try_parse<'a>(
         r: BytesReader<'a, Self::Size>,
-    ) -> Result<(Self, BytesReader<'a, U0>), Self::Error>;
+    ) -> Result<(Self::Output, BytesReader<'a, U0>), Self::Error>;
 
-    fn try_from_array<'a>(array: &'a GenericArray<u8, Self::Size>) -> Result<Self, Self::Error> {
+    fn try_from_array<'a>(
+        array: &'a GenericArray<u8, Self::Size>,
+    ) -> Result<Self::Output, Self::Error> {
         try_parse(array, Self::try_parse)
     }
 }
 
 impl<'a, Size: ArrayLength> BytesReader<'a, Size> {
-    pub fn read<T>(self) -> (T, BytesReader<'a, Diff<Size, T::Size>>)
+    pub fn read<T>(self) -> (T::Output, BytesReader<'a, Diff<Size, T::Size>>)
     where
         T: BinaryParse,
         Size: Sub<T::Size, Output: ArrayLength>,
@@ -158,7 +163,7 @@ impl<'a, Size: ArrayLength> BytesReader<'a, Size> {
         (T::from_array(head), reader)
     }
 
-    pub fn try_read<T>(self) -> Result<(T, BytesReader<'a, Diff<Size, T::Size>>), T::Error>
+    pub fn try_read<T>(self) -> Result<(T::Output, BytesReader<'a, Diff<Size, T::Size>>), T::Error>
     where
         T: BinaryTryParse,
         Size: Sub<T::Size, Output: ArrayLength>,
@@ -177,9 +182,10 @@ where
     <T::Size as Mul<N>>::Output: Sub<Prod<T::Size, N>, Output = U0>,
     <T::Size as Mul<N>>::Output: Div<T::Size, Output = N>,
 {
+    type Output = GenericArray<T::Output, N>;
     type Size = Prod<T::Size, N>;
 
-    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self, BytesReader<'a, U0>) {
+    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, BytesReader<'a, U0>) {
         let (bytes, r) = r.advance::<Self::Size>();
         let chunks = bytes.unflatten();
         (GenericArray::generate(|i| T::from_array(&chunks[i])), r)
@@ -194,12 +200,13 @@ where
     <T::Size as Mul<N>>::Output: Sub<Prod<T::Size, N>, Output = U0>,
     <T::Size as Mul<N>>::Output: Div<T::Size, Output = N>,
 {
+    type Output = GenericArray<T::Output, N>;
     type Size = Prod<T::Size, N>;
     type Error = T::Error;
 
     fn try_parse<'a>(
         r: BytesReader<'a, Self::Size>,
-    ) -> Result<(Self, BytesReader<'a, U0>), Self::Error> {
+    ) -> Result<(Self::Output, BytesReader<'a, U0>), Self::Error> {
         let (bytes, r) = r.advance::<Self::Size>();
         let chunks = bytes.unflatten();
         let Ok(result) = GenericArray::try_generate(|i| T::try_from_array(&chunks[i]));
@@ -216,9 +223,10 @@ where
         Sub<Prod<T::Size, ConstArrayLength<N>>, Output = U0>,
     <T::Size as Mul<ConstArrayLength<N>>>::Output: Div<T::Size, Output = ConstArrayLength<N>>,
 {
+    type Output = [T::Output; N];
     type Size = Prod<T::Size, ConstArrayLength<N>>;
 
-    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self, BytesReader<'a, U0>) {
+    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, BytesReader<'a, U0>) {
         let (array, r) = <GenericArray<T, ConstArrayLength<N>> as BinaryParse>::parse(r);
         (array.into_array(), r)
     }
@@ -233,12 +241,13 @@ where
         Sub<Prod<T::Size, ConstArrayLength<N>>, Output = U0>,
     <T::Size as Mul<ConstArrayLength<N>>>::Output: Div<T::Size, Output = ConstArrayLength<N>>,
 {
+    type Output = [T::Output; N];
     type Size = Prod<T::Size, ConstArrayLength<N>>;
     type Error = T::Error;
 
     fn try_parse<'a>(
         r: BytesReader<'a, Self::Size>,
-    ) -> Result<(Self, BytesReader<'a, U0>), Self::Error> {
+    ) -> Result<(Self::Output, BytesReader<'a, U0>), Self::Error> {
         <GenericArray<T, ConstArrayLength<N>> as BinaryTryParse>::try_parse(r)
             .map(|(array, r)| (array.into_array(), r))
     }
