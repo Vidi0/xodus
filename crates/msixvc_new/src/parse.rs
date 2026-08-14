@@ -16,8 +16,6 @@
 //! - [`parse`]
 //! - [`try_parse`]
 
-mod reader;
-
 pub mod byteorder;
 pub mod structs;
 
@@ -85,6 +83,19 @@ impl<'a, Size: ArrayLength> BytesReader<'a, Size> {
     {
         let (head, reader) = self.advance();
         (*AsRef::<[u8; N]>::as_ref(head), reader)
+    }
+
+    /// Checks that the next bytes of the reader match the ones in `magic`.
+    pub fn magic<const N: usize>(
+        self,
+        expected: &[u8; N],
+    ) -> Result<BytesReader<'a, Diff<Size, ConstArrayLength<N>>>, &'a [u8; N]>
+    where
+        Const<N>: IntoArrayLength,
+        Size: Sub<ConstArrayLength<N>, Output: ArrayLength>,
+    {
+        let (magic, r) = self.array_ref::<N>();
+        if magic == expected { Ok(r) } else { Err(magic) }
     }
 }
 

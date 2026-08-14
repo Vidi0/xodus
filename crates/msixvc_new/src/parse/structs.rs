@@ -1,7 +1,19 @@
-//! Additional types for parsing with a [`BytesReader`](super::BytesReader).
+//! Additional types for parsing with a [`BytesReader`].
+//!
+//! The implementations of [`BinaryParse`] for these types are not intended for
+//! general use, as they provide only one of the many ways to parse each type,
+//! the one used in `MSIXVC` binaries (for example, a UUID can be parsed in
+//! little-endian vs big-endian).
+
+use super::byteorder::little_endian::{I64 as LeI64, U16 as LeU16};
+use super::{BinaryParse, BytesReader};
 
 use std::cmp::{Ord, Ordering, PartialOrd};
 use std::fmt::{self, Debug, Display};
+
+use chrono::DateTime;
+use typenum::{U8, U16};
+use uuid::Uuid;
 
 /// A version number that consists of major, minor, patch, and build components.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -10,22 +22,6 @@ pub struct Version {
     pub minor: u16,
     pub patch: u16,
     pub build: u16,
-}
-
-impl Version {
-    /// Creates a [`Version`] from a byte array.
-    ///
-    /// The input is expected as it appears in the XVD header, where the least
-    /// significant version component comes first: `[build, patch, minor, major]`,
-    /// and every component is stored as a little-endian `u16`.
-    pub fn from_bytes(bytes: [u8; 8]) -> Self {
-        Self {
-            build: u16::from_le_bytes([bytes[0], bytes[1]]),
-            patch: u16::from_le_bytes([bytes[2], bytes[3]]),
-            minor: u16::from_le_bytes([bytes[4], bytes[5]]),
-            major: u16::from_le_bytes([bytes[6], bytes[7]]),
-        }
-    }
 }
 
 impl Ord for Version {
@@ -58,6 +54,65 @@ impl Debug for Version {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // Use the Display implementation as the Debug one
         write!(f, "{}", self)
+    }
+}
+
+impl BinaryParse for Version {
+    type Output = Version;
+    type Size = U8;
+
+    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, BytesReader<'a, typenum::U0>) {
+        let (build, r) = r.read::<LeU16>();
+        let (patch, r) = r.read::<LeU16>();
+        let (minor, r) = r.read::<LeU16>();
+        let (major, r) = r.read::<LeU16>();
+
+        (
+            Version {
+                build,
+                patch,
+                minor,
+                major,
+            },
+            r,
+        )
+    }
+}
+
+impl BinaryParse for Uuid {
+    type Output = Uuid;
+    type Size = U16;
+
+    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, BytesReader<'a, typenum::U0>) {
+        let (uuid, r) = r.array();
+        (Uuid::from_bytes_le(uuid), r)
+    }
+}
+
+/// Converts a Microsoft FILETIME (number of 100ns intervals since 1601-01-01 UTC)
+/// into a [`chrono::DateTime`]
+const fn microsoft_filetime(filetime: i64) -> DateTime<chrono::Utc> {
+    // FILETIME counts 100ns intervals since 1601-01-01 UTC.
+    // Unix time counts nanoseconds since 1970-01-01 UTC.
+
+    /// Number of 100 nanoseconds between FILETIME epoch and Unix time
+    const FILETIME_TO_UNIX: i64 = 116_444_736_000_000_000;
+
+    let unix_nanos = (filetime - FILETIME_TO_UNIX) * 100;
+    DateTime::from_timestamp_nanos(unix_nanos)
+}
+
+/// A marker type that implements [`BinaryParse`] for parsing a Microsoft FILETIME
+/// into a [`chrono`]'s [`DateTime<Utc>`].
+pub struct Filetime;
+
+impl BinaryParse for Filetime {
+    type Output = DateTime<chrono::Utc>;
+    type Size = U8;
+
+    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, BytesReader<'a, typenum::U0>) {
+        let (filetime, r) = r.read::<LeI64>();
+        (microsoft_filetime(filetime), r)
     }
 }
 
