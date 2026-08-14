@@ -308,7 +308,7 @@ version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e0d3deb30c7451ff83128c5df7015bd8b2014ffdbba7a913fa7156565098f40e"
 dependencies = [
- "thiserror 2.0.19",
+ "thiserror 2.0.20",
 ]
 
 [[package]]
@@ -1178,7 +1178,7 @@ version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "10d60334b3b2e7c9d91ef8150abfb6fa4c1c39ebbcf4a81c2e346aad939fee3e"
 dependencies = [
- "thiserror 2.0.19",
+ "thiserror 2.0.20",
 ]
 
 [[package]]
@@ -2844,7 +2844,7 @@ dependencies = [
  "jni-sys 0.4.1",
  "log",
  "simd_cesu8",
- "thiserror 2.0.19",
+ "thiserror 2.0.20",
  "walkdir",
  "windows-link 0.2.1",
 ]
@@ -2994,7 +2994,7 @@ dependencies = [
  "sha3 0.10.9",
  "signature 2.2.0",
  "slh-dsa",
- "thiserror 2.0.19",
+ "thiserror 2.0.20",
  "x25519-dalek",
  "zeroize",
 ]
@@ -3213,7 +3213,7 @@ dependencies = [
  "ntfs",
  "num_enum",
  "reqwest 0.13.4",
- "thiserror 2.0.19",
+ "thiserror 2.0.20",
  "tokio",
  "tokio-util",
  "uuid",
@@ -3224,8 +3224,14 @@ dependencies = [
 name = "msixvc_new"
 version = "0.1.0"
 dependencies = [
+ "bitflags 2.13.1",
+ "chrono",
  "generic-array 1.4.4",
+ "num_enum",
+ "thiserror 2.0.20",
+ "tokio",
  "typenum",
+ "uuid",
 ]
 
 [[package]]
@@ -3332,7 +3338,7 @@ dependencies = [
  "memoffset",
  "nt-string",
  "strum_macros",
- "thiserror 2.0.19",
+ "thiserror 2.0.20",
  "time",
  "zerocopy",
 ]
@@ -4195,7 +4201,7 @@ dependencies = [
  "rustc-hash",
  "rustls 0.23.43",
  "socket2 0.6.5",
- "thiserror 2.0.19",
+ "thiserror 2.0.20",
  "tokio",
  "tracing",
  "web-time",
@@ -4218,7 +4224,7 @@ dependencies = [
  "rustls 0.23.43",
  "rustls-pki-types",
  "slab",
- "thiserror 2.0.19",
+ "thiserror 2.0.20",
  "tinyvec",
  "tracing",
  "web-time",
@@ -4367,7 +4373,7 @@ checksum = "a4e608c6638b9c18977b00b475ac1f28d14e84b27d8d42f70e0bf1e3dec127ac"
 dependencies = [
  "getrandom 0.2.17",
  "libredox",
- "thiserror 2.0.19",
+ "thiserror 2.0.20",
 ]
 
 [[package]]
@@ -5466,11 +5472,11 @@ dependencies = [
 
 [[package]]
 name = "thiserror"
-version = "2.0.19"
+version = "2.0.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "09a43598840e33d5b0331f38c5e30d13bb11c11210a4b58f0d9b18a5a5eefcd9"
+checksum = "ec86235f5fcc2a73650310756d2ac5b138a5780bbbdfae3eeccec992c435ba4f"
 dependencies = [
- "thiserror-impl 2.0.19",
+ "thiserror-impl 2.0.20",
 ]
 
 [[package]]
@@ -5486,9 +5492,9 @@ dependencies = [
 
 [[package]]
 name = "thiserror-impl"
-version = "2.0.19"
+version = "2.0.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "43cbfe0cf76104d42a574802844187e84a305e531ed54455f11fbde0f10541cd"
+checksum = "bc04cd3e1236dd4a98afca4569f2deb3f120e5422a4023be2cb683f8486292af"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -5813,7 +5819,7 @@ dependencies = [
  "log",
  "pem-rfc7468",
  "spki 0.7.3",
- "thiserror 2.0.19",
+ "thiserror 2.0.20",
  "x509-cert",
 ]
 
@@ -6160,7 +6166,7 @@ version = "0.38.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "381336cfffd772377d291702245447a5251a2ffa5bad679c99e61bc48bacbf9c"
 dependencies = [
- "thiserror 2.0.19",
+ "thiserror 2.0.20",
  "windows",
  "windows-core 0.61.2",
 ]
@@ -6657,7 +6663,7 @@ dependencies = [
  "sha2 0.10.9",
  "soup3",
  "tao-macros",
- "thiserror 2.0.19",
+ "thiserror 2.0.20",
  "url",
  "webkit2gtk",
  "webkit2gtk-sys",
@@ -6769,7 +6775,7 @@ dependencies = [
  "serde_json",
  "sha2 0.11.0",
  "smbios-lib",
- "thiserror 2.0.19",
+ "thiserror 2.0.20",
  "tokio",
  "url",
  "uuid",
