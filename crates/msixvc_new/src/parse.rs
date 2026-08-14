@@ -17,6 +17,8 @@
 //! - [`try_parse`]
 
 mod reader;
+
+pub mod byteorder;
 pub mod structs;
 
 use std::ops::{Div, Mul, Sub};
