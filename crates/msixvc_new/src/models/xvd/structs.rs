@@ -89,7 +89,7 @@ impl BinaryTryParse for XvdHeader {
 
         let r = match r.magic(&Self::MAGIC) {
             Ok(r) => r,
-            Err(magic) => return Err(XvdHeaderParseError::InvalidMagic(*magic)),
+            Err(magic) => return Err(Self::Error::InvalidMagic(*magic)),
         };
 
         let (volume_flags, r) = r.read::<XvdVolumeFlags>();
@@ -450,11 +450,11 @@ impl BinaryTryParse for XvcRegionHeader {
         let (length, r) = r.read::<U64>();
 
         if !offset.is_multiple_of(PAGE_SIZE as u64) {
-            return Err(XvcRegionHeaderParseError::InvalidOffset(offset));
+            return Err(Self::Error::InvalidOffset(offset));
         }
 
         if !length.is_multiple_of(PAGE_SIZE as u64) {
-            return Err(XvcRegionHeaderParseError::InvalidLength(length));
+            return Err(Self::Error::InvalidLength(length));
         }
 
         let (hash, r) = r.read::<U64>();
@@ -607,7 +607,7 @@ impl BinaryTryParse for XvdSegmentMetadataHeader {
     ) -> Result<(Self::Output, BytesReader<'a, typenum::U0>), Self::Error> {
         let r = match r.magic(Self::MAGIC) {
             Ok(r) => r,
-            Err(magic) => return Err(XvdSegmentMetadataHeaderParseError::InvalidMagic(*magic)),
+            Err(magic) => return Err(Self::Error::InvalidMagic(*magic)),
         };
 
         let (version0, r) = r.read::<U32>();
