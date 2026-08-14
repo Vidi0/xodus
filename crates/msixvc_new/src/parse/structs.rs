@@ -61,6 +61,7 @@ impl BinaryParse for Version {
     type Output = Version;
     type Size = U8;
 
+    #[inline]
     fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, BytesReader<'a, typenum::U0>) {
         let (build, r) = r.read::<LeU16>();
         let (patch, r) = r.read::<LeU16>();
@@ -83,6 +84,7 @@ impl BinaryParse for Uuid {
     type Output = Uuid;
     type Size = U16;
 
+    #[inline]
     fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, BytesReader<'a, typenum::U0>) {
         let (uuid, r) = r.array();
         (Uuid::from_bytes_le(uuid), r)
@@ -91,6 +93,7 @@ impl BinaryParse for Uuid {
 
 /// Converts a Microsoft FILETIME (number of 100ns intervals since 1601-01-01 UTC)
 /// into a [`chrono::DateTime`]
+#[inline]
 const fn microsoft_filetime(filetime: i64) -> DateTime<chrono::Utc> {
     // FILETIME counts 100ns intervals since 1601-01-01 UTC.
     // Unix time counts nanoseconds since 1970-01-01 UTC.
@@ -110,6 +113,7 @@ impl BinaryParse for Filetime {
     type Output = DateTime<chrono::Utc>;
     type Size = U8;
 
+    #[inline]
     fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, BytesReader<'a, typenum::U0>) {
         let (filetime, r) = r.read::<LeI64>();
         (microsoft_filetime(filetime), r)

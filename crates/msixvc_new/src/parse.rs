@@ -49,6 +49,7 @@ impl<'a, Size: ArrayLength> BytesReader<'a, Size> {
     /// bytes as a reference to a [`GenericArray<u8, N>`].
     ///
     /// Returns a new updated reader. See [`BytesReader`] for more information.
+    #[inline]
     pub fn advance<N>(self) -> (&'a GenericArray<u8, N>, BytesReader<'a, Diff<Size, N>>)
     where
         N: ArrayLength,
@@ -59,6 +60,7 @@ impl<'a, Size: ArrayLength> BytesReader<'a, Size> {
     }
 
     /// Gets an array containing the first `N` bytes of the reader.
+    #[inline]
     pub fn array<const N: usize>(
         self,
     ) -> ([u8; N], BytesReader<'a, Diff<Size, ConstArrayLength<N>>>)
@@ -71,6 +73,7 @@ impl<'a, Size: ArrayLength> BytesReader<'a, Size> {
     }
 
     /// Checks that the next bytes of the reader match the ones in `magic`.
+    #[inline]
     pub fn magic<const N: usize>(
         self,
         expected: &[u8; N],
@@ -98,6 +101,7 @@ impl<'a, Size: ArrayLength> BytesReader<'a, Size> {
 /// remaining bytes of the array, thus guaranteeing at compile time that every
 /// read is within bounds. To guarantee statically that every byte is always parsed,
 /// an empty [`BytesReader`] must be returned, alongside the parsed data.
+#[inline]
 pub fn parse<'a, N, T>(
     array: &'a GenericArray<u8, N>,
     f: impl FnOnce(BytesReader<'a, N>) -> (T, BytesReader<'a, U0>),
@@ -113,6 +117,7 @@ where
 /// through, ensuring that every byte is consumed on success.
 ///
 /// See [`parse`] for more information.
+#[inline]
 pub fn try_parse<'a, N, T, E>(
     array: &'a GenericArray<u8, N>,
     f: impl FnOnce(BytesReader<'a, N>) -> Result<(T, BytesReader<'a, U0>), E>,
@@ -132,6 +137,7 @@ pub trait BinaryParse: Sized {
 
     fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, BytesReader<'a, U0>);
 
+    #[inline]
     fn from_array<'a>(array: &'a GenericArray<u8, Self::Size>) -> Self::Output {
         parse(array, Self::parse)
     }
@@ -148,6 +154,7 @@ pub trait BinaryTryParse: Sized {
         r: BytesReader<'a, Self::Size>,
     ) -> Result<(Self::Output, BytesReader<'a, U0>), Self::Error>;
 
+    #[inline]
     fn try_from_array<'a>(
         array: &'a GenericArray<u8, Self::Size>,
     ) -> Result<Self::Output, Self::Error> {
@@ -156,6 +163,7 @@ pub trait BinaryTryParse: Sized {
 }
 
 impl<'a, Size: ArrayLength> BytesReader<'a, Size> {
+    #[inline]
     pub fn read<T>(self) -> (T::Output, BytesReader<'a, Diff<Size, T::Size>>)
     where
         T: BinaryParse,
@@ -165,6 +173,7 @@ impl<'a, Size: ArrayLength> BytesReader<'a, Size> {
         (T::from_array(head), reader)
     }
 
+    #[inline]
     pub fn try_read<T>(self) -> Result<(T::Output, BytesReader<'a, Diff<Size, T::Size>>), T::Error>
     where
         T: BinaryTryParse,
@@ -179,6 +188,7 @@ impl BinaryParse for u8 {
     type Output = u8;
     type Size = U1;
 
+    #[inline]
     fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, BytesReader<'a, U0>) {
         let (bytes, r) = r.array();
         (u8::from_ne_bytes(bytes), r)
@@ -189,6 +199,7 @@ impl BinaryParse for i8 {
     type Output = i8;
     type Size = U1;
 
+    #[inline]
     fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, BytesReader<'a, U0>) {
         let (bytes, r) = r.array();
         (i8::from_ne_bytes(bytes), r)
@@ -207,6 +218,7 @@ where
     type Output = GenericArray<T::Output, N>;
     type Size = Prod<T::Size, N>;
 
+    #[inline]
     fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, BytesReader<'a, U0>) {
         let (bytes, r) = r.advance::<Self::Size>();
         let chunks = bytes.unflatten();
@@ -226,6 +238,7 @@ where
     type Size = Prod<T::Size, N>;
     type Error = T::Error;
 
+    #[inline]
     fn try_parse<'a>(
         r: BytesReader<'a, Self::Size>,
     ) -> Result<(Self::Output, BytesReader<'a, U0>), Self::Error> {
@@ -248,6 +261,7 @@ where
     type Output = [T::Output; N];
     type Size = Prod<T::Size, ConstArrayLength<N>>;
 
+    #[inline]
     fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, BytesReader<'a, U0>) {
         let (array, r) = <GenericArray<T, ConstArrayLength<N>> as BinaryParse>::parse(r);
         (array.into_array(), r)
@@ -267,6 +281,7 @@ where
     type Size = Prod<T::Size, ConstArrayLength<N>>;
     type Error = T::Error;
 
+    #[inline]
     fn try_parse<'a>(
         r: BytesReader<'a, Self::Size>,
     ) -> Result<(Self::Output, BytesReader<'a, U0>), Self::Error> {

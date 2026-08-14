@@ -23,6 +23,7 @@ macro_rules! impl_le_be {
             type Output = $ty;
             type Size = ConstArrayLength<$size>;
 
+            #[inline]
             fn parse<'a>(r: BytesReader<'a, Self::Size>) -> ($ty, BytesReader<'a, U0>) {
                 let (bytes, r) = r.array::<$size>();
                 (<$ty>::from_le_bytes(bytes), r)
@@ -33,6 +34,7 @@ macro_rules! impl_le_be {
             type Output = $ty;
             type Size = ConstArrayLength<$size>;
 
+            #[inline]
             fn parse<'a>(r: BytesReader<'a, Self::Size>) -> ($ty, BytesReader<'a, U0>) {
                 let (bytes, r) = r.array::<$size>();
                 (<$ty>::from_be_bytes(bytes), r)
