@@ -103,11 +103,8 @@ impl BinaryTryParse for XvdHeader {
         let (top_hash_block_hash, r) = r.array::<0x20>();
         let (original_xvc_data_hash, r) = r.array::<0x20>();
 
-        let (xvd_type, r) = r.read::<U32>();
-        let xvd_type = XvdType::try_from(xvd_type as u8)?;
-
-        let (xvd_content_type, r) = r.read::<U32>();
-        let xvd_content_type = XvdContentType::try_from(xvd_content_type as u8)?;
+        let (xvd_type, r) = r.try_read::<XvdType>()?;
+        let (xvd_content_type, r) = r.try_read::<XvdContentType>()?;
 
         let (embedded_xvd_length, r) = r.read::<U32>();
         let (user_data_length, r) = r.read::<U32>();
@@ -287,14 +284,12 @@ impl BinaryParse for XvcInfo {
         let (key_count, r) = r.read::<U16>();
 
         let (_unknownd20, r) = r.read::<U32>();
-        let (initial_play_region_id, r) = r.read::<U32>();
-        let initial_play_region_id = XvcRegionId::from(initial_play_region_id);
+        let (initial_play_region_id, r) = r.read::<XvcRegionId>();
 
         let (initial_play_offset, r) = r.read::<U64>();
         let (file_time_created, r) = r.read::<Filetime>();
 
-        let (preview_region_id, r) = r.read::<U32>();
-        let preview_region_id = XvcRegionId::from(preview_region_id);
+        let (preview_region_id, r) = r.read::<XvcRegionId>();
 
         let (update_segment_count, r) = r.read::<U32>();
         let (preview_offset, r) = r.read::<U64>();
@@ -356,9 +351,7 @@ impl BinaryParse for XvcRegionSpecifier {
     type Size = T392;
 
     fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, BytesReader<'a, typenum::U0>) {
-        let (region_id, r) = r.read::<U32>();
-        let region_id = XvcRegionId::from(region_id);
-
+        let (region_id, r) = r.read::<XvcRegionId>();
         let (_padding4, r) = r.read::<U32>();
 
         let (key, r) = r.read::<[U16; 0x40]>();
@@ -433,8 +426,7 @@ impl BinaryTryParse for XvcRegionHeader {
     fn try_parse<'a>(
         r: BytesReader<'a, Self::Size>,
     ) -> Result<(Self::Output, BytesReader<'a, typenum::U0>), Self::Error> {
-        let (region_id, r) = r.read::<U32>();
-        let region_id = XvcRegionId::from(region_id);
+        let (region_id, r) = r.read::<XvcRegionId>();
 
         let (key_id, r) = r.read::<U16>();
         let key_id = XvcKeyId::new(key_id);
