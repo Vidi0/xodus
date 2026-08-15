@@ -314,3 +314,23 @@ where
             .map(|(array, r)| (array.into_array(), r))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_implements_binary_parse() {
+        const fn requires_binary_parse<T: BinaryParse>() {}
+
+        // Zero-sized types should be able to implement `BinaryParse`, too.
+
+        requires_binary_parse::<()>();
+        requires_binary_parse::<[(); 0]>();
+        requires_binary_parse::<[(); 1]>();
+
+        requires_binary_parse::<u8>();
+        requires_binary_parse::<[u8; 0]>();
+        requires_binary_parse::<[u8; 1]>();
+    }
+}
