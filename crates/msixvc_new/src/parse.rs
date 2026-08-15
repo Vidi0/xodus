@@ -20,7 +20,8 @@ pub mod byteorder;
 pub mod structs;
 
 use std::hint::cold_path;
-use std::ops::{Div, Mul, Sub};
+use std::mem::transmute;
+use std::ops::{Mul, Sub};
 
 use generic_array::sequence::{FallibleGenericSequence, GenericSequence, Split, Unflatten};
 use generic_array::{ArrayLength, ConstArrayLength, GenericArray, IntoArrayLength};
@@ -215,35 +216,47 @@ impl BinaryParse for i8 {
     }
 }
 
+/// Splits a reference to a `GenericArray<T, Size>` into a reference to `N`
+/// chunks of length `M` each, where `Size = N * M`.
+///
+/// Usually, the [`Unflatten`](generic_array::sequence::Unflatten) trait should
+/// be preferred, but it causes trouble when dividing by [`U0`].
+#[inline]
+fn unflatten_ref<'a, T, N, M>(
+    array: &'a GenericArray<T, Prod<N, M>>,
+) -> &'a GenericArray<GenericArray<T, M>, N>
+where
+    N: ArrayLength + Mul<M, Output: ArrayLength>,
+    M: ArrayLength,
+{
+    // SAFETY: `GenericArray<T, Prod<N, M>>` and
+    // `GenericArray<GenericArray<T, M>, N>` have identical size and layout.
+    unsafe { transmute(array) }
+}
+
 impl<T, N> BinaryParse for GenericArray<T, N>
 where
-    N: ArrayLength,
     T: BinaryParse,
-    T::Size: Mul<N, Output: ArrayLength>,
-    // This looks complicated, but it is obvious.
-    <T::Size as Mul<N>>::Output: Div<T::Size, Output = N>,
+    N: ArrayLength + Mul<T::Size, Output: ArrayLength>,
 {
     type Output = GenericArray<T::Output, N>;
-    type Size = Prod<T::Size, N>;
+    type Size = Prod<N, T::Size>;
 
     #[inline]
     fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, BytesReader<'a, U0>) {
         let (bytes, r) = r.remaining();
-        let chunks = bytes.unflatten();
+        let chunks = unflatten_ref::<u8, N, T::Size>(bytes);
         (GenericArray::generate(|i| T::from_array(&chunks[i])), r)
     }
 }
 
 impl<T, N> BinaryTryParse for GenericArray<T, N>
 where
-    N: ArrayLength,
     T: BinaryTryParse,
-    T::Size: Mul<N, Output: ArrayLength>,
-    // This looks complicated, but it is obvious.
-    <T::Size as Mul<N>>::Output: Div<T::Size, Output = N>,
+    N: ArrayLength + Mul<T::Size, Output: ArrayLength>,
 {
     type Output = GenericArray<T::Output, N>;
-    type Size = Prod<T::Size, N>;
+    type Size = Prod<N, T::Size>;
     type Error = T::Error;
 
     #[inline]
@@ -251,7 +264,7 @@ where
         r: BytesReader<'a, Self::Size>,
     ) -> Result<(Self::Output, BytesReader<'a, U0>), Self::Error> {
         let (bytes, r) = r.remaining();
-        let chunks = bytes.unflatten();
+        let chunks = unflatten_ref::<u8, N, T::Size>(bytes);
         let Ok(result) = GenericArray::try_generate(|i| T::try_from_array(&chunks[i]));
         result.map(|arr| (arr, r))
     }
@@ -259,14 +272,12 @@ where
 
 impl<T, const N: usize> BinaryParse for [T; N]
 where
-    Const<N>: IntoArrayLength,
     T: BinaryParse,
-    T::Size: Mul<ConstArrayLength<N>, Output: ArrayLength>,
-    // This looks complicated, but it is obvious.
-    <T::Size as Mul<ConstArrayLength<N>>>::Output: Div<T::Size, Output = ConstArrayLength<N>>,
+    Const<N>: IntoArrayLength,
+    ConstArrayLength<N>: Mul<T::Size, Output: ArrayLength>,
 {
     type Output = [T::Output; N];
-    type Size = Prod<T::Size, ConstArrayLength<N>>;
+    type Size = Prod<ConstArrayLength<N>, T::Size>;
 
     #[inline]
     fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, BytesReader<'a, U0>) {
@@ -277,14 +288,12 @@ where
 
 impl<T, const N: usize> BinaryTryParse for [T; N]
 where
-    Const<N>: IntoArrayLength,
     T: BinaryTryParse,
-    T::Size: Mul<ConstArrayLength<N>, Output: ArrayLength>,
-    // This looks complicated, but it is obvious.
-    <T::Size as Mul<ConstArrayLength<N>>>::Output: Div<T::Size, Output = ConstArrayLength<N>>,
+    Const<N>: IntoArrayLength,
+    ConstArrayLength<N>: Mul<T::Size, Output: ArrayLength>,
 {
     type Output = [T::Output; N];
-    type Size = Prod<T::Size, ConstArrayLength<N>>;
+    type Size = Prod<ConstArrayLength<N>, T::Size>;
     type Error = T::Error;
 
     #[inline]
