@@ -220,7 +220,7 @@ where
     N: ArrayLength,
     T: BinaryParse,
     T::Size: Mul<N, Output: ArrayLength>,
-    // These look complicated, but they are obvious.
+    // This looks complicated, but it is obvious.
     <T::Size as Mul<N>>::Output: Div<T::Size, Output = N>,
 {
     type Output = GenericArray<T::Output, N>;
@@ -239,6 +239,7 @@ where
     N: ArrayLength,
     T: BinaryTryParse,
     T::Size: Mul<N, Output: ArrayLength>,
+    // This looks complicated, but it is obvious.
     <T::Size as Mul<N>>::Output: Div<T::Size, Output = N>,
 {
     type Output = GenericArray<T::Output, N>;
@@ -261,6 +262,7 @@ where
     Const<N>: IntoArrayLength,
     T: BinaryParse,
     T::Size: Mul<ConstArrayLength<N>, Output: ArrayLength>,
+    // This looks complicated, but it is obvious.
     <T::Size as Mul<ConstArrayLength<N>>>::Output: Div<T::Size, Output = ConstArrayLength<N>>,
 {
     type Output = [T::Output; N];
@@ -278,6 +280,7 @@ where
     Const<N>: IntoArrayLength,
     T: BinaryTryParse,
     T::Size: Mul<ConstArrayLength<N>, Output: ArrayLength>,
+    // This looks complicated, but it is obvious.
     <T::Size as Mul<ConstArrayLength<N>>>::Output: Div<T::Size, Output = ConstArrayLength<N>>,
 {
     type Output = [T::Output; N];
