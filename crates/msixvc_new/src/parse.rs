@@ -19,11 +19,11 @@
 pub mod byteorder;
 pub mod structs;
 
-use std::hint::cold_path;
-use std::mem::transmute;
+use std::hint;
+use std::mem;
 use std::ops::{Mul, Sub};
 
-use generic_array::sequence::{FallibleGenericSequence, GenericSequence, Split, Unflatten};
+use generic_array::sequence::{FallibleGenericSequence, GenericSequence, Split};
 use generic_array::{ArrayLength, ConstArrayLength, GenericArray, IntoArrayLength};
 use typenum::{Const, Diff, Prod, U0, U1};
 
@@ -95,7 +95,7 @@ impl<'a, Size: ArrayLength> BytesReader<'a, Size> {
         if magic == *expected {
             Ok(r)
         } else {
-            cold_path();
+            hint::cold_path();
             Err(magic)
         }
     }
@@ -231,7 +231,7 @@ where
 {
     // SAFETY: `GenericArray<T, Prod<N, M>>` and
     // `GenericArray<GenericArray<T, M>, N>` have identical size and layout.
-    unsafe { transmute(array) }
+    unsafe { mem::transmute(array) }
 }
 
 impl<T, N> BinaryParse for GenericArray<T, N>
