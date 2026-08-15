@@ -194,6 +194,16 @@ impl<'a, Size: ArrayLength> BytesReader<'a, Size> {
     }
 }
 
+impl BinaryParse for () {
+    type Output = ();
+    type Size = U0;
+
+    #[inline]
+    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, BytesReader<'a, U0>) {
+        ((), r)
+    }
+}
+
 impl BinaryParse for u8 {
     type Output = u8;
     type Size = U1;
