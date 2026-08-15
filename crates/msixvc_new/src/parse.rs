@@ -60,6 +60,13 @@ impl<'a, Size: ArrayLength> BytesReader<'a, Size> {
         (head, BytesReader(tail))
     }
 
+    /// Consumes the reader, returning a reference to all remaining bytes.
+    #[inline]
+    pub fn remaining(self) -> (&'a GenericArray<u8, Size>, BytesReader<'a, U0>) {
+        const EMPTY_ARRAY: &GenericArray<u8, U0> = &GenericArray::from_array([]);
+        (self.0, BytesReader(EMPTY_ARRAY))
+    }
+
     /// Gets an array containing the first `N` bytes of the reader.
     #[inline]
     pub fn array<const N: usize>(
@@ -214,7 +221,6 @@ where
     T: BinaryParse,
     T::Size: Mul<N, Output: ArrayLength>,
     // These look complicated, but they are obvious.
-    <T::Size as Mul<N>>::Output: Sub<Prod<T::Size, N>, Output = U0>,
     <T::Size as Mul<N>>::Output: Div<T::Size, Output = N>,
 {
     type Output = GenericArray<T::Output, N>;
@@ -222,7 +228,7 @@ where
 
     #[inline]
     fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, BytesReader<'a, U0>) {
-        let (bytes, r) = r.advance::<Self::Size>();
+        let (bytes, r) = r.remaining();
         let chunks = bytes.unflatten();
         (GenericArray::generate(|i| T::from_array(&chunks[i])), r)
     }
@@ -233,7 +239,6 @@ where
     N: ArrayLength,
     T: BinaryTryParse,
     T::Size: Mul<N, Output: ArrayLength>,
-    <T::Size as Mul<N>>::Output: Sub<Prod<T::Size, N>, Output = U0>,
     <T::Size as Mul<N>>::Output: Div<T::Size, Output = N>,
 {
     type Output = GenericArray<T::Output, N>;
@@ -244,7 +249,7 @@ where
     fn try_parse<'a>(
         r: BytesReader<'a, Self::Size>,
     ) -> Result<(Self::Output, BytesReader<'a, U0>), Self::Error> {
-        let (bytes, r) = r.advance::<Self::Size>();
+        let (bytes, r) = r.remaining();
         let chunks = bytes.unflatten();
         let Ok(result) = GenericArray::try_generate(|i| T::try_from_array(&chunks[i]));
         result.map(|arr| (arr, r))
@@ -256,8 +261,6 @@ where
     Const<N>: IntoArrayLength,
     T: BinaryParse,
     T::Size: Mul<ConstArrayLength<N>, Output: ArrayLength>,
-    <T::Size as Mul<ConstArrayLength<N>>>::Output:
-        Sub<Prod<T::Size, ConstArrayLength<N>>, Output = U0>,
     <T::Size as Mul<ConstArrayLength<N>>>::Output: Div<T::Size, Output = ConstArrayLength<N>>,
 {
     type Output = [T::Output; N];
@@ -275,8 +278,6 @@ where
     Const<N>: IntoArrayLength,
     T: BinaryTryParse,
     T::Size: Mul<ConstArrayLength<N>, Output: ArrayLength>,
-    <T::Size as Mul<ConstArrayLength<N>>>::Output:
-        Sub<Prod<T::Size, ConstArrayLength<N>>, Output = U0>,
     <T::Size as Mul<ConstArrayLength<N>>>::Output: Div<T::Size, Output = ConstArrayLength<N>>,
 {
     type Output = [T::Output; N];
