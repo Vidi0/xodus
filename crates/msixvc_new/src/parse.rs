@@ -19,6 +19,7 @@
 pub mod byteorder;
 pub mod structs;
 
+use std::hint::cold_path;
 use std::ops::{Div, Mul, Sub};
 
 use generic_array::sequence::{FallibleGenericSequence, GenericSequence, Split, Unflatten};
@@ -86,6 +87,7 @@ impl<'a, Size: ArrayLength> BytesReader<'a, Size> {
         if magic == *expected {
             Ok(r)
         } else {
+            cold_path();
             Err(magic)
         }
     }
