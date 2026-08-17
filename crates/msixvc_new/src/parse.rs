@@ -142,7 +142,7 @@ where
 
 /// A trait implemented by types that describe how to parse a value from a byte
 /// array.
-pub trait BinaryParse: Sized {
+pub trait BinaryParse {
     type Output;
     type Size: ArrayLength;
 
@@ -156,7 +156,7 @@ pub trait BinaryParse: Sized {
 
 /// A trait implemented by types that describe how to parse a value from a byte
 /// array in a fallible way.
-pub trait BinaryTryParse: Sized {
+pub trait BinaryTryParse {
     type Output;
     type Size: ArrayLength;
     type Error;
