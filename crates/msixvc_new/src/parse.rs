@@ -27,6 +27,8 @@ use generic_array::sequence::{FallibleGenericSequence, GenericSequence, Split};
 use generic_array::{ArrayLength, ConstArrayLength, GenericArray, IntoArrayLength};
 use typenum::{Const, Diff, Prod, U0, U1};
 
+const EMPTY_READER: BytesReader<'static, U0> = BytesReader(&GenericArray::from_array([]));
+
 /// A reader that wraps a reference to a byte array and provides methods for parsing
 /// fixed-length fields from it in order.
 ///
@@ -64,8 +66,7 @@ impl<'a, Size: ArrayLength> BytesReader<'a, Size> {
     /// Consumes the reader, returning a reference to all remaining bytes.
     #[inline]
     pub fn remaining(self) -> (&'a GenericArray<u8, Size>, BytesReader<'a, U0>) {
-        const EMPTY_ARRAY: &GenericArray<u8, U0> = &GenericArray::from_array([]);
-        (self.0, BytesReader(EMPTY_ARRAY))
+        (self.0, EMPTY_READER)
     }
 
     /// Gets an array containing the first `N` bytes of the reader.
