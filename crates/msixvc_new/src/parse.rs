@@ -149,7 +149,7 @@ pub trait BinaryParse {
     fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, BytesReader<'a, U0>);
 
     #[inline]
-    fn from_array<'a>(array: &'a GenericArray<u8, Self::Size>) -> Self::Output {
+    fn from_array(array: &GenericArray<u8, Self::Size>) -> Self::Output {
         parse(array, Self::parse)
     }
 }
@@ -166,9 +166,7 @@ pub trait BinaryTryParse {
     ) -> Result<(Self::Output, BytesReader<'a, U0>), Self::Error>;
 
     #[inline]
-    fn try_from_array<'a>(
-        array: &'a GenericArray<u8, Self::Size>,
-    ) -> Result<Self::Output, Self::Error> {
+    fn try_from_array(array: &GenericArray<u8, Self::Size>) -> Result<Self::Output, Self::Error> {
         try_parse(array, Self::try_parse)
     }
 }
@@ -233,9 +231,9 @@ impl BinaryParse for i8 {
 /// Usually, the [`Unflatten`](generic_array::sequence::Unflatten) trait should
 /// be preferred, but it causes trouble when dividing by [`U0`].
 #[inline]
-fn unflatten_ref<'a, T, N, M>(
-    array: &'a GenericArray<T, Prod<N, M>>,
-) -> &'a GenericArray<GenericArray<T, M>, N>
+fn unflatten_ref<T, N, M>(
+    array: &GenericArray<T, Prod<N, M>>,
+) -> &GenericArray<GenericArray<T, M>, N>
 where
     N: ArrayLength + Mul<M, Output: ArrayLength>,
     M: ArrayLength,
