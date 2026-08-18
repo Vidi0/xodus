@@ -12,7 +12,7 @@ use std::cmp::{Ord, Ordering, PartialOrd};
 use std::fmt::{self, Debug, Display};
 
 use chrono::DateTime;
-use typenum::{U8, U16};
+use typenum::{U0, U8, U16};
 use uuid::Uuid;
 
 /// A version number that consists of major, minor, patch, and build components.
@@ -62,7 +62,7 @@ impl BinaryParse for Version {
     type Size = U8;
 
     #[inline]
-    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, BytesReader<'a, typenum::U0>) {
+    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, BytesReader<'a, U0>) {
         let (build, r) = r.read::<LeU16>();
         let (patch, r) = r.read::<LeU16>();
         let (minor, r) = r.read::<LeU16>();
@@ -85,7 +85,7 @@ impl BinaryParse for Uuid {
     type Size = U16;
 
     #[inline]
-    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, BytesReader<'a, typenum::U0>) {
+    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, BytesReader<'a, U0>) {
         let (uuid, r) = r.array();
         (Uuid::from_bytes_le(uuid), r)
     }
@@ -114,7 +114,7 @@ impl BinaryParse for Filetime {
     type Size = U8;
 
     #[inline]
-    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, BytesReader<'a, typenum::U0>) {
+    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, BytesReader<'a, U0>) {
         let (filetime, r) = r.read::<LeI64>();
         (microsoft_filetime(filetime), r)
     }
