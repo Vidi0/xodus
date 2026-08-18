@@ -28,6 +28,7 @@ use generic_array::{ArrayLength, ConstArrayLength, GenericArray, IntoArrayLength
 use typenum::{Const, Diff, Prod, U0, U1};
 
 pub type EmptyReader<'a> = BytesReader<'a, U0>;
+pub type AdvancedReader<'a, Size, N> = BytesReader<'a, Diff<Size, N>>;
 
 const EMPTY_READER: EmptyReader<'static> = BytesReader(&GenericArray::from_array([]));
 
@@ -56,7 +57,7 @@ impl<'a, Size: ArrayLength> BytesReader<'a, Size> {
     ///
     /// Returns a new updated reader. See [`BytesReader`] for more information.
     #[inline]
-    pub fn advance<N>(self) -> (&'a GenericArray<u8, N>, BytesReader<'a, Diff<Size, N>>)
+    pub fn advance<N>(self) -> (&'a GenericArray<u8, N>, AdvancedReader<'a, Size, N>)
     where
         N: ArrayLength,
         Size: Sub<N, Output: ArrayLength>,
@@ -73,9 +74,7 @@ impl<'a, Size: ArrayLength> BytesReader<'a, Size> {
 
     /// Gets an array containing the first `N` bytes of the reader.
     #[inline]
-    pub fn array<const N: usize>(
-        self,
-    ) -> ([u8; N], BytesReader<'a, Diff<Size, ConstArrayLength<N>>>)
+    pub fn array<const N: usize>(self) -> ([u8; N], AdvancedReader<'a, Size, ConstArrayLength<N>>)
     where
         Const<N>: IntoArrayLength,
         Size: Sub<ConstArrayLength<N>, Output: ArrayLength>,
@@ -89,7 +88,7 @@ impl<'a, Size: ArrayLength> BytesReader<'a, Size> {
     pub fn magic<const N: usize>(
         self,
         expected: &[u8; N],
-    ) -> Result<BytesReader<'a, Diff<Size, ConstArrayLength<N>>>, [u8; N]>
+    ) -> Result<AdvancedReader<'a, Size, ConstArrayLength<N>>, [u8; N]>
     where
         Const<N>: IntoArrayLength,
         Size: Sub<ConstArrayLength<N>, Output: ArrayLength>,
@@ -175,7 +174,7 @@ pub trait BinaryTryParse {
 
 impl<'a, Size: ArrayLength> BytesReader<'a, Size> {
     #[inline]
-    pub fn read<T>(self) -> (T::Output, BytesReader<'a, Diff<Size, T::Size>>)
+    pub fn read<T>(self) -> (T::Output, AdvancedReader<'a, Size, T::Size>)
     where
         T: BinaryParse,
         Size: Sub<T::Size, Output: ArrayLength>,
@@ -185,7 +184,7 @@ impl<'a, Size: ArrayLength> BytesReader<'a, Size> {
     }
 
     #[inline]
-    pub fn try_read<T>(self) -> Result<(T::Output, BytesReader<'a, Diff<Size, T::Size>>), T::Error>
+    pub fn try_read<T>(self) -> Result<(T::Output, AdvancedReader<'a, Size, T::Size>), T::Error>
     where
         T: BinaryTryParse,
         Size: Sub<T::Size, Output: ArrayLength>,
