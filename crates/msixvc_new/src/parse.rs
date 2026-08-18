@@ -184,6 +184,7 @@ impl<'a, Size: ArrayLength> BytesReader<'a, Size> {
     }
 
     #[inline]
+    #[expect(clippy::type_complexity)]
     pub fn try_read<T>(self) -> Result<(T::Output, AdvancedReader<'a, Size, T::Size>), T::Error>
     where
         T: BinaryTryParse,
