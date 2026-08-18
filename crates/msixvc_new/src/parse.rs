@@ -27,11 +27,6 @@ use generic_array::sequence::{FallibleGenericSequence, GenericSequence, Split};
 use generic_array::{ArrayLength, ConstArrayLength, GenericArray, IntoArrayLength};
 use typenum::{Const, Diff, Prod, U0, U1};
 
-pub type EmptyReader<'a> = BytesReader<'a, U0>;
-pub type AdvancedReader<'a, Size, N> = BytesReader<'a, Diff<Size, N>>;
-
-const EMPTY_READER: EmptyReader<'static> = BytesReader(&GenericArray::from_array([]));
-
 /// A reader that wraps a reference to a byte array and provides methods for parsing
 /// fixed-length fields from it in order.
 ///
@@ -50,6 +45,11 @@ const EMPTY_READER: EmptyReader<'static> = BytesReader(&GenericArray::from_array
 /// - [`parse`]
 /// - [`try_parse`]
 pub struct BytesReader<'a, Size: ArrayLength>(&'a GenericArray<u8, Size>);
+
+pub type EmptyReader<'a> = BytesReader<'a, U0>;
+pub type AdvancedReader<'a, Size, N> = BytesReader<'a, Diff<Size, N>>;
+
+const EMPTY_READER: EmptyReader<'static> = BytesReader(&GenericArray::from_array([]));
 
 impl<'a, Size: ArrayLength> BytesReader<'a, Size> {
     /// Advances the reader by `N` bytes, returning a reference to the first `N`
