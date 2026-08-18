@@ -153,6 +153,11 @@ pub trait BinaryParse {
     fn from_array(array: &GenericArray<u8, Self::Size>) -> Self::Output {
         parse(array, Self::parse)
     }
+
+    #[inline]
+    fn from_slice(slice: &[u8]) -> Self::Output {
+        Self::from_array(GenericArray::from_slice(slice))
+    }
 }
 
 /// A trait implemented by types that describe how to parse a value from a byte
@@ -169,6 +174,11 @@ pub trait BinaryTryParse {
     #[inline]
     fn try_from_array(array: &GenericArray<u8, Self::Size>) -> Result<Self::Output, Self::Error> {
         try_parse(array, Self::try_parse)
+    }
+
+    #[inline]
+    fn try_from_slice(slice: &[u8]) -> Result<Self::Output, Self::Error> {
+        Self::try_from_array(GenericArray::from_slice(slice))
     }
 }
 
