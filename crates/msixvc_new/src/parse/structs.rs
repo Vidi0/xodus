@@ -86,8 +86,8 @@ impl BinaryParse for Uuid {
 
     #[inline]
     fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, EmptyReader<'a>) {
-        let (uuid, r) = r.array();
-        (Uuid::from_bytes_le(uuid), r)
+        let (&uuid, r) = r.remaining();
+        (Uuid::from_bytes_le(uuid.into_array()), r)
     }
 }
 
