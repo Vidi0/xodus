@@ -27,7 +27,9 @@ use generic_array::sequence::{FallibleGenericSequence, GenericSequence, Split};
 use generic_array::{ArrayLength, ConstArrayLength, GenericArray, IntoArrayLength};
 use typenum::{Const, Diff, Prod, U0, U1};
 
-const EMPTY_READER: BytesReader<'static, U0> = BytesReader(&GenericArray::from_array([]));
+pub type EmptyReader<'a> = BytesReader<'a, U0>;
+
+const EMPTY_READER: EmptyReader<'static> = BytesReader(&GenericArray::from_array([]));
 
 /// A reader that wraps a reference to a byte array and provides methods for parsing
 /// fixed-length fields from it in order.
@@ -65,7 +67,7 @@ impl<'a, Size: ArrayLength> BytesReader<'a, Size> {
 
     /// Consumes the reader, returning a reference to all remaining bytes.
     #[inline]
-    pub fn remaining(self) -> (&'a GenericArray<u8, Size>, BytesReader<'a, U0>) {
+    pub fn remaining(self) -> (&'a GenericArray<u8, Size>, EmptyReader<'a>) {
         (self.0, EMPTY_READER)
     }
 
@@ -115,7 +117,7 @@ impl<'a, Size: ArrayLength> BytesReader<'a, Size> {
 #[inline]
 pub fn parse<'a, N, T>(
     array: &'a GenericArray<u8, N>,
-    f: impl FnOnce(BytesReader<'a, N>) -> (T, BytesReader<'a, U0>),
+    f: impl FnOnce(BytesReader<'a, N>) -> (T, EmptyReader<'a>),
 ) -> T
 where
     N: ArrayLength,
@@ -131,7 +133,7 @@ where
 #[inline]
 pub fn try_parse<'a, N, T, E>(
     array: &'a GenericArray<u8, N>,
-    f: impl FnOnce(BytesReader<'a, N>) -> Result<(T, BytesReader<'a, U0>), E>,
+    f: impl FnOnce(BytesReader<'a, N>) -> Result<(T, EmptyReader<'a>), E>,
 ) -> Result<T, E>
 where
     N: ArrayLength,
@@ -146,7 +148,7 @@ pub trait BinaryParse {
     type Output;
     type Size: ArrayLength;
 
-    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, BytesReader<'a, U0>);
+    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, EmptyReader<'a>);
 
     #[inline]
     fn from_array(array: &GenericArray<u8, Self::Size>) -> Self::Output {
@@ -163,7 +165,7 @@ pub trait BinaryTryParse {
 
     fn try_parse<'a>(
         r: BytesReader<'a, Self::Size>,
-    ) -> Result<(Self::Output, BytesReader<'a, U0>), Self::Error>;
+    ) -> Result<(Self::Output, EmptyReader<'a>), Self::Error>;
 
     #[inline]
     fn try_from_array(array: &GenericArray<u8, Self::Size>) -> Result<Self::Output, Self::Error> {
@@ -198,7 +200,7 @@ impl BinaryParse for () {
     type Size = U0;
 
     #[inline]
-    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, BytesReader<'a, U0>) {
+    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, EmptyReader<'a>) {
         ((), r)
     }
 }
@@ -208,7 +210,7 @@ impl BinaryParse for u8 {
     type Size = U1;
 
     #[inline]
-    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, BytesReader<'a, U0>) {
+    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, EmptyReader<'a>) {
         let (&bytes, r) = r.remaining();
         (u8::from_ne_bytes(bytes.into_array()), r)
     }
@@ -219,7 +221,7 @@ impl BinaryParse for i8 {
     type Size = U1;
 
     #[inline]
-    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, BytesReader<'a, U0>) {
+    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, EmptyReader<'a>) {
         let (&bytes, r) = r.remaining();
         (i8::from_ne_bytes(bytes.into_array()), r)
     }
@@ -252,7 +254,7 @@ where
     type Size = Prod<N, T::Size>;
 
     #[inline]
-    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, BytesReader<'a, U0>) {
+    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, EmptyReader<'a>) {
         let (bytes, r) = r.remaining();
         let chunks = unflatten_ref::<u8, N, T::Size>(bytes);
         (GenericArray::generate(|i| T::from_array(&chunks[i])), r)
@@ -271,7 +273,7 @@ where
     #[inline]
     fn try_parse<'a>(
         r: BytesReader<'a, Self::Size>,
-    ) -> Result<(Self::Output, BytesReader<'a, U0>), Self::Error> {
+    ) -> Result<(Self::Output, EmptyReader<'a>), Self::Error> {
         let (bytes, r) = r.remaining();
         let chunks = unflatten_ref::<u8, N, T::Size>(bytes);
         let Ok(result) = GenericArray::try_generate(|i| T::try_from_array(&chunks[i]));
@@ -289,7 +291,7 @@ where
     type Size = Prod<ConstArrayLength<N>, T::Size>;
 
     #[inline]
-    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, BytesReader<'a, U0>) {
+    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, EmptyReader<'a>) {
         let (array, r) = <GenericArray<T, ConstArrayLength<N>> as BinaryParse>::parse(r);
         (array.into_array(), r)
     }
@@ -308,7 +310,7 @@ where
     #[inline]
     fn try_parse<'a>(
         r: BytesReader<'a, Self::Size>,
-    ) -> Result<(Self::Output, BytesReader<'a, U0>), Self::Error> {
+    ) -> Result<(Self::Output, EmptyReader<'a>), Self::Error> {
         <GenericArray<T, ConstArrayLength<N>> as BinaryTryParse>::try_parse(r)
             .map(|(array, r)| (array.into_array(), r))
     }

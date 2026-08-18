@@ -5,7 +5,7 @@ use super::{
 };
 use crate::parse::byteorder::little_endian::*;
 use crate::parse::structs::{Filetime, Version};
-use crate::parse::{BinaryParse, BinaryTryParse, BytesReader};
+use crate::parse::{BinaryParse, BinaryTryParse, BytesReader, EmptyReader};
 
 use chrono::DateTime;
 use num_enum::TryFromPrimitiveError;
@@ -84,7 +84,7 @@ impl BinaryTryParse for XvdHeader {
 
     fn try_parse<'a>(
         r: BytesReader<'a, Self::Size>,
-    ) -> Result<(Self, BytesReader<'a, typenum::U0>), Self::Error> {
+    ) -> Result<(Self, EmptyReader<'a>), Self::Error> {
         let (signature, r) = r.array::<0x200>();
 
         let r = r.magic(Self::MAGIC).map_err(Self::Error::InvalidMagic)?;
@@ -199,7 +199,7 @@ impl BinaryParse for XvdExtEntry {
     type Output = Self;
     type Size = T24;
 
-    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self, BytesReader<'a, typenum::U0>) {
+    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self, EmptyReader<'a>) {
         let (code, r) = r.read::<U32>();
         let (length, r) = r.read::<U32>();
         let (offset, r) = r.read::<U64>();
@@ -230,7 +230,7 @@ impl BinaryParse for XvdHashEntry {
     type Output = Self;
     type Size = T24;
 
-    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, BytesReader<'a, typenum::U0>) {
+    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, EmptyReader<'a>) {
         let (block_hash, r) = r.array();
         let (unit, r) = r.read::<U32>();
 
@@ -260,7 +260,7 @@ impl BinaryParse for XvcInfo {
     type Output = Self;
     type Size = T3496;
 
-    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, BytesReader<'a, typenum::U0>) {
+    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, EmptyReader<'a>) {
         let (content_id, r) = r.read::<Uuid>();
         let (xvc_encryption_key_id, r) = r.read::<[Uuid; 0xC0]>();
         let xvc_encryption_key_id: HashMap<u8, Uuid> = xvc_encryption_key_id
@@ -328,7 +328,7 @@ impl BinaryParse for XvdUpdateSegment {
     type Output = Self;
     type Size = T12;
 
-    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, BytesReader<'a, typenum::U0>) {
+    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, EmptyReader<'a>) {
         let (page_num, r) = r.read::<U32>();
         let (hash, r) = r.read::<U64>();
 
@@ -347,7 +347,7 @@ impl BinaryParse for XvcRegionSpecifier {
     type Output = Self;
     type Size = T392;
 
-    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, BytesReader<'a, typenum::U0>) {
+    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, EmptyReader<'a>) {
         let (region_id, r) = r.read::<XvcRegionId>();
         let (_padding4, r) = r.read::<U32>();
 
@@ -396,7 +396,7 @@ impl BinaryParse for XvcKeyId {
     type Output = Self;
     type Size = T2;
 
-    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, BytesReader<'a, typenum::U0>) {
+    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, EmptyReader<'a>) {
         let (key_id, r) = r.read::<U16>();
         (Self::new(key_id), r)
     }
@@ -432,7 +432,7 @@ impl BinaryTryParse for XvcRegionHeader {
 
     fn try_parse<'a>(
         r: BytesReader<'a, Self::Size>,
-    ) -> Result<(Self::Output, BytesReader<'a, typenum::U0>), Self::Error> {
+    ) -> Result<(Self::Output, EmptyReader<'a>), Self::Error> {
         let (region_id, r) = r.read::<XvcRegionId>();
 
         let (key_id, r) = r.read::<XvcKeyId>();
@@ -486,7 +486,7 @@ impl BinaryParse for XvcRegionPresenceInfo {
     type Output = Self;
     type Size = T1;
 
-    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, BytesReader<'a, typenum::U0>) {
+    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, EmptyReader<'a>) {
         let (byte, r) = r.read::<u8>();
 
         (
@@ -510,7 +510,7 @@ impl BinaryParse for XvdUserDataHeader {
     type Output = Self;
     type Size = T16;
 
-    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, BytesReader<'a, typenum::U0>) {
+    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, EmptyReader<'a>) {
         let (length, r) = r.read::<U32>();
         let (version, r) = r.read::<U32>();
         let (t, r) = r.read::<U32>();
@@ -531,7 +531,7 @@ impl BinaryParse for XvdUserDataPackageFilesHeader {
     type Output = Self;
     type Size = T528;
 
-    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, BytesReader<'a, typenum::U0>) {
+    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, EmptyReader<'a>) {
         let (version, r) = r.read::<U32>();
         let (package_full_name, r) = r.read::<[U16; 260]>();
         let (file_count, r) = r.read::<U32>();
@@ -558,7 +558,7 @@ impl BinaryParse for XvdUserDataPackageFileEntry {
     type Output = Self;
     type Size = T528;
 
-    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, BytesReader<'a, typenum::U0>) {
+    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, EmptyReader<'a>) {
         let (file_path, r) = r.read::<[U16; 260]>();
         let (size, r) = r.read::<U32>();
         let (offset, r) = r.read::<U32>();
@@ -601,7 +601,7 @@ impl BinaryTryParse for XvdSegmentMetadataHeader {
 
     fn try_parse<'a>(
         r: BytesReader<'a, Self::Size>,
-    ) -> Result<(Self::Output, BytesReader<'a, typenum::U0>), Self::Error> {
+    ) -> Result<(Self::Output, EmptyReader<'a>), Self::Error> {
         let r = r.magic(Self::MAGIC).map_err(Self::Error::InvalidMagic)?;
 
         let (version0, r) = r.read::<U32>();
@@ -640,7 +640,7 @@ impl BinaryParse for XvdSegmentMetadataSegment {
     type Output = Self;
     type Size = T16;
 
-    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, BytesReader<'a, typenum::U0>) {
+    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, EmptyReader<'a>) {
         let (flags, r) = r.read::<XvdSegmentMetadataSegmentFlags>();
         let (path_length, r) = r.read::<U16>();
         let (path_offset, r) = r.read::<U32>();

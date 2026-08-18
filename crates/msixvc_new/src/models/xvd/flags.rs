@@ -1,5 +1,5 @@
 use crate::parse::byteorder::little_endian::*;
-use crate::parse::{BinaryParse, BytesReader};
+use crate::parse::{BinaryParse, BytesReader, EmptyReader};
 
 use bitflags::bitflags;
 use typenum::{U1 as T1, U2 as T2, U4 as T4};
@@ -22,7 +22,7 @@ impl BinaryParse for XvdVolumeFlags {
     type Output = Self;
     type Size = T4;
 
-    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, BytesReader<'a, typenum::U0>) {
+    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, EmptyReader<'a>) {
         let (flags, r) = r.read::<U32>();
         (XvdVolumeFlags::from_bits_retain(flags), r)
     }
@@ -55,7 +55,7 @@ impl BinaryParse for WriteablePolicyFlags {
     type Output = Self;
     type Size = T4;
 
-    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, BytesReader<'a, typenum::U0>) {
+    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, EmptyReader<'a>) {
         let (flags, r) = r.read::<U32>();
         (WriteablePolicyFlags::from_bits_retain(flags), r)
     }
@@ -70,7 +70,7 @@ impl BinaryParse for XvcInfoFlags {
     type Output = Self;
     type Size = T4;
 
-    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, BytesReader<'a, typenum::U0>) {
+    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, EmptyReader<'a>) {
         let (flags, r) = r.read::<U32>();
         (XvcInfoFlags::from_bits_retain(flags), r)
     }
@@ -93,7 +93,7 @@ impl BinaryParse for XvcRegionFlags {
     type Output = Self;
     type Size = T4;
 
-    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, BytesReader<'a, typenum::U0>) {
+    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, EmptyReader<'a>) {
         let (flags, r) = r.read::<U32>();
         (XvcRegionFlags::from_bits_retain(flags), r)
     }
@@ -111,7 +111,7 @@ impl BinaryParse for XvcRegionPresenceInfoFlags {
     type Output = Self;
     type Size = T1;
 
-    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, BytesReader<'a, typenum::U0>) {
+    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, EmptyReader<'a>) {
         let (flags, r) = r.read::<u8>();
         (XvcRegionPresenceInfoFlags::from_bits_retain(flags), r)
     }
@@ -128,7 +128,7 @@ impl BinaryParse for XvdSegmentMetadataSegmentFlags {
     type Output = Self;
     type Size = T2;
 
-    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, BytesReader<'a, typenum::U0>) {
+    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, EmptyReader<'a>) {
         let (flags, r) = r.read::<U16>();
         (XvdSegmentMetadataSegmentFlags::from_bits_retain(flags), r)
     }

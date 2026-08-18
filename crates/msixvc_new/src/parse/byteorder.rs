@@ -4,9 +4,9 @@
 //! [`BinaryParse`] for every multi-byte primitive integer, parsing `T` from
 //! its little-endian or big-endian representation, respectively.
 
-use super::{BinaryParse, BytesReader};
+use super::{BinaryParse, BytesReader, EmptyReader};
 
-use typenum::{U0, U2, U4, U8, U16};
+use typenum::{U2, U4, U8, U16};
 
 use std::marker::PhantomData;
 
@@ -23,7 +23,7 @@ macro_rules! impl_le_be {
             type Size = $size;
 
             #[inline]
-            fn parse<'a>(r: BytesReader<'a, Self::Size>) -> ($ty, BytesReader<'a, U0>) {
+            fn parse<'a>(r: BytesReader<'a, Self::Size>) -> ($ty, EmptyReader<'a>) {
                 let (&bytes, r) = r.remaining();
                 (<$ty>::from_le_bytes(bytes.into_array()), r)
             }
@@ -34,7 +34,7 @@ macro_rules! impl_le_be {
             type Size = $size;
 
             #[inline]
-            fn parse<'a>(r: BytesReader<'a, Self::Size>) -> ($ty, BytesReader<'a, U0>) {
+            fn parse<'a>(r: BytesReader<'a, Self::Size>) -> ($ty, EmptyReader<'a>) {
                 let (&bytes, r) = r.remaining();
                 (<$ty>::from_be_bytes(bytes.into_array()), r)
             }

@@ -6,13 +6,13 @@
 //! little-endian vs big-endian).
 
 use super::byteorder::little_endian::{I64 as LeI64, U16 as LeU16};
-use super::{BinaryParse, BytesReader};
+use super::{BinaryParse, BytesReader, EmptyReader};
 
 use std::cmp::{Ord, Ordering, PartialOrd};
 use std::fmt::{self, Debug, Display};
 
 use chrono::DateTime;
-use typenum::{U0, U8, U16};
+use typenum::{U8, U16};
 use uuid::Uuid;
 
 /// A version number that consists of major, minor, patch, and build components.
@@ -62,7 +62,7 @@ impl BinaryParse for Version {
     type Size = U8;
 
     #[inline]
-    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, BytesReader<'a, U0>) {
+    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, EmptyReader<'a>) {
         let (build, r) = r.read::<LeU16>();
         let (patch, r) = r.read::<LeU16>();
         let (minor, r) = r.read::<LeU16>();
@@ -85,7 +85,7 @@ impl BinaryParse for Uuid {
     type Size = U16;
 
     #[inline]
-    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, BytesReader<'a, U0>) {
+    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, EmptyReader<'a>) {
         let (uuid, r) = r.array();
         (Uuid::from_bytes_le(uuid), r)
     }
@@ -114,7 +114,7 @@ impl BinaryParse for Filetime {
     type Size = U8;
 
     #[inline]
-    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, BytesReader<'a, U0>) {
+    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, EmptyReader<'a>) {
         let (filetime, r) = r.read::<LeI64>();
         (microsoft_filetime(filetime), r)
     }

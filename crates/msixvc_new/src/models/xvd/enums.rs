@@ -1,5 +1,5 @@
 use crate::parse::byteorder::little_endian::*;
-use crate::parse::{BinaryParse, BinaryTryParse, BytesReader};
+use crate::parse::{BinaryParse, BinaryTryParse, BytesReader, EmptyReader};
 
 use num_enum::{FromPrimitive, IntoPrimitive, TryFromPrimitive};
 use typenum::U4 as T4;
@@ -21,7 +21,7 @@ impl BinaryTryParse for XvdType {
 
     fn try_parse<'a>(
         r: BytesReader<'a, Self::Size>,
-    ) -> Result<(Self::Output, BytesReader<'a, typenum::U0>), Self::Error> {
+    ) -> Result<(Self::Output, EmptyReader<'a>), Self::Error> {
         let (val, r) = r.read::<U32>();
         Self::try_from(val as u8).map(|val| (val, r))
     }
@@ -76,7 +76,7 @@ impl BinaryTryParse for XvdContentType {
 
     fn try_parse<'a>(
         r: BytesReader<'a, Self::Size>,
-    ) -> Result<(Self::Output, BytesReader<'a, typenum::U0>), Self::Error> {
+    ) -> Result<(Self::Output, EmptyReader<'a>), Self::Error> {
         let (val, r) = r.read::<U32>();
         Self::try_from(val as u8).map(|val| (val, r))
     }
@@ -105,7 +105,7 @@ impl BinaryParse for XvcRegionId {
     type Output = Self;
     type Size = T4;
 
-    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, BytesReader<'a, typenum::U0>) {
+    fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, EmptyReader<'a>) {
         let (val, r) = r.read::<U32>();
         (Self::from(val), r)
     }
