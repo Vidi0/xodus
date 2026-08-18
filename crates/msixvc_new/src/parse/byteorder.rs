@@ -6,8 +6,7 @@
 
 use super::{BinaryParse, BytesReader};
 
-use generic_array::ConstArrayLength;
-use typenum::U0;
+use typenum::{U0, U2, U4, U8, U16};
 
 use std::marker::PhantomData;
 
@@ -18,39 +17,39 @@ pub struct Le<T>(PhantomData<T>);
 pub struct Be<T>(PhantomData<T>);
 
 macro_rules! impl_le_be {
-    ($ty:ty, $size:literal) => {
+    ($ty:ty, $size:ty) => {
         impl BinaryParse for Le<$ty> {
             type Output = $ty;
-            type Size = ConstArrayLength<$size>;
+            type Size = $size;
 
             #[inline]
             fn parse<'a>(r: BytesReader<'a, Self::Size>) -> ($ty, BytesReader<'a, U0>) {
-                let (bytes, r) = r.array::<$size>();
-                (<$ty>::from_le_bytes(bytes), r)
+                let (&bytes, r) = r.remaining();
+                (<$ty>::from_le_bytes(bytes.into_array()), r)
             }
         }
 
         impl BinaryParse for Be<$ty> {
             type Output = $ty;
-            type Size = ConstArrayLength<$size>;
+            type Size = $size;
 
             #[inline]
             fn parse<'a>(r: BytesReader<'a, Self::Size>) -> ($ty, BytesReader<'a, U0>) {
-                let (bytes, r) = r.array::<$size>();
-                (<$ty>::from_be_bytes(bytes), r)
+                let (&bytes, r) = r.remaining();
+                (<$ty>::from_be_bytes(bytes.into_array()), r)
             }
         }
     };
 }
 
-impl_le_be!(u16, 2);
-impl_le_be!(i16, 2);
-impl_le_be!(u32, 4);
-impl_le_be!(i32, 4);
-impl_le_be!(u64, 8);
-impl_le_be!(i64, 8);
-impl_le_be!(u128, 16);
-impl_le_be!(i128, 16);
+impl_le_be!(u16, U2);
+impl_le_be!(i16, U2);
+impl_le_be!(u32, U4);
+impl_le_be!(i32, U4);
+impl_le_be!(u64, U8);
+impl_le_be!(i64, U8);
+impl_le_be!(u128, U16);
+impl_le_be!(i128, U16);
 
 /// Little-endian type aliases.
 pub mod little_endian {
