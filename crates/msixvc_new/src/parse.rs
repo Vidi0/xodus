@@ -211,8 +211,8 @@ impl BinaryParse for u8 {
 
     #[inline]
     fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, BytesReader<'a, U0>) {
-        let (bytes, r) = r.array();
-        (u8::from_ne_bytes(bytes), r)
+        let (&bytes, r) = r.remaining();
+        (u8::from_ne_bytes(bytes.into_array()), r)
     }
 }
 
@@ -222,8 +222,8 @@ impl BinaryParse for i8 {
 
     #[inline]
     fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, BytesReader<'a, U0>) {
-        let (bytes, r) = r.array();
-        (i8::from_ne_bytes(bytes), r)
+        let (&bytes, r) = r.remaining();
+        (i8::from_ne_bytes(bytes.into_array()), r)
     }
 }
 
