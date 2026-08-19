@@ -38,8 +38,15 @@ use typenum::{Const, Diff, Prod, U0, U1};
 /// remaining in the reader to fill the array, an error occurs at compile time.
 ///
 /// This reader is generic over a `Size` which implements [`generic_array::ArrayLength`],
-/// so out-of-bounds reads are prevented at compile time. When stabilized, this reader's
-/// `Size` could be stored using const generics instead of typenum's types.
+/// so out-of-bounds reads are prevented at compile time. When stabilized, this
+/// reader's `Size` could be stored using const generics instead of typenum's types.
+///
+/// This struct has no public constructor and cannot be obtained as a standalone
+/// value. The only way to obtain an instance of this struct is as the argument
+/// to the closure passed to either [`parse`] or [`try_parse`] (directly, or via
+/// the [`BinaryParse`] or [`BinaryTryParse`] traits). As both functions discard
+/// the empty reader on return, a [`BytesReader`] can never escape a [`parse`] or
+/// [`try_parse`] call.
 ///
 /// # See also
 /// - [`parse`]
