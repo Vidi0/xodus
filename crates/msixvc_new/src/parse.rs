@@ -154,6 +154,8 @@ pub trait BinaryParse {
     type Output;
     type Size: ArrayLength;
 
+    const SIZE: usize = <Self::Size as typenum::Unsigned>::USIZE;
+
     /// Parse from a reader.
     fn parse<'a>(r: BytesReader<'a, Self::Size>) -> (Self::Output, EmptyReader<'a>);
 
@@ -167,7 +169,7 @@ pub trait BinaryParse {
     ///
     /// # Panics
     ///
-    /// Panics if the slice's length is not equal to [`Self::Size`].
+    /// Panics if the slice's length is not equal to [`Self::SIZE`].
     #[inline]
     fn from_slice(slice: &[u8]) -> Self::Output {
         Self::from_array(GenericArray::from_slice(slice))
@@ -180,6 +182,8 @@ pub trait BinaryTryParse {
     type Output;
     type Size: ArrayLength;
     type Error;
+
+    const SIZE: usize = <Self::Size as typenum::Unsigned>::USIZE;
 
     /// Parse from a reader.
     fn try_parse<'a>(
@@ -196,7 +200,7 @@ pub trait BinaryTryParse {
     ///
     /// # Panics
     ///
-    /// Panics if the slice's length is not equal to [`Self::Size`].
+    /// Panics if the slice's length is not equal to [`Self::SIZE`].
     #[inline]
     fn try_from_slice(slice: &[u8]) -> Result<Self::Output, Self::Error> {
         Self::try_from_array(GenericArray::from_slice(slice))
