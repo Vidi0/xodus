@@ -501,7 +501,7 @@ impl XvdFile {
         let paths_offset =
             segment_header.header_length as u64 + segment_header.segment_count as u64 * 0x10;
 
-        let mut segments = vec![];
+        let mut segments = Vec::with_capacity(segment_header.segment_count as usize);
         for _ in 0..segment_header.segment_count {
             let segment = XvdSegmentMetadataSegment::read(&mut file).await?;
             segments.push(segment);
