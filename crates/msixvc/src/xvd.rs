@@ -7,6 +7,7 @@ use aes::Aes128;
 use aes::cipher::KeyInit;
 use bytes::Bytes;
 use futures_util::StreamExt;
+use msixvc_common::parse::{BinaryParse, BinaryTryParse};
 use reqwest::header::RANGE;
 use tokio::fs::OpenOptions;
 use tokio::io::{
@@ -343,7 +344,11 @@ impl XvdFile {
     where
         Reader: AsyncRead + AsyncSeek + Unpin,
     {
-        let xvd_header = XvdHeader::read(&mut file).await?;
+        let xvd_header = {
+            let mut buf = XvdHeader::buffer();
+            file.read_exact(&mut buf).await?;
+            XvdHeader::try_from_array(&buf)?
+        };
 
         let mdu_offset = xvd_header.mdu_offset();
         let (_hash_tree_levels, hash_tree_page_count) = xvd_header.hash_tree_info();
@@ -356,13 +361,20 @@ impl XvdFile {
             file.seek(std::io::SeekFrom::Start(xvc_info_offset))
                 .await
                 .expect("Unable to seek");
-            let xvc_info = XvcInfo::read(&mut file).await?;
+
+            let xvc_info = {
+                let mut buf = XvcInfo::buffer();
+                file.read_exact(&mut buf).await?;
+                XvcInfo::from_array(&buf)
+            };
 
             let region_count = xvc_info.region_count;
 
             if xvc_info.version >= 1 {
+                let mut buf = XvcRegionHeader::buffer();
                 for _ in 0..region_count {
-                    let region_header = XvcRegionHeader::read(&mut file).await?;
+                    file.read_exact(&mut buf).await?;
+                    let region_header = XvcRegionHeader::try_from_array(&buf)?;
                     region_headers.push(region_header);
                 }
             }
@@ -382,7 +394,7 @@ impl XvdFile {
             page_number_to_offset(xvd_header.dynamic_header_page_count()) + dynamic_header_offset;
 
         let mut enc_sections: Vec<EncryptedSectionInfo> = vec![];
-        let mut reader = BufReader::with_capacity(PAGES_PER_BLOCK * XvdHashEntry::RAW_SIZE, file);
+        let mut reader = BufReader::with_capacity(PAGES_PER_BLOCK * XvdHashEntry::SIZE, file);
         for h in region_headers {
             let key_id = h.key_id;
             let length = h.length;
@@ -416,10 +428,13 @@ impl XvdFile {
                 page += run_length;
                 let read_offset = hash_tree_offset
                     + page_number_to_offset(hash_block)
-                    + (entry_start * XvdHashEntry::RAW_SIZE as u64);
+                    + (entry_start * XvdHashEntry::SIZE as u64);
                 reader.seek(SeekFrom::Start(read_offset)).await?;
+
+                let mut buf = XvdHashEntry::buffer();
                 for _ in 0..run_length {
-                    let hash = XvdHashEntry::read(&mut reader).await?;
+                    reader.read_exact(&mut buf).await?;
+                    let hash = XvdHashEntry::from_array(&buf);
                     data_units.push(hash.unit);
                     data_hashs.push(hash.block_hash);
                 }
@@ -454,18 +469,26 @@ impl XvdFile {
 
         let user_data_offset = self.user_data_offset;
         file.seek(SeekFrom::Start(user_data_offset)).await?;
-        let user_data_header = XvdUserDataHeader::read(&mut file).await?;
+        let user_data_header = {
+            let mut buf = XvdUserDataHeader::buffer();
+            file.read_exact(&mut buf).await?;
+            XvdUserDataHeader::from_array(&buf)
+        };
         if user_data_header.t == 0 {
             let mut off = user_data_offset + user_data_header.length as u64;
             file.seek(SeekFrom::Start(off)).await?;
-            let user_data_package_files_header =
-                XvdUserDataPackageFilesHeader::read(&mut file).await?;
-            off += XvdUserDataPackageFilesHeader::RAW_SIZE as u64;
+            let user_data_package_files_header = {
+                let mut buf = XvdUserDataPackageFilesHeader::buffer();
+                file.read_exact(&mut buf).await?;
+                XvdUserDataPackageFilesHeader::from_array(&buf)
+            };
+            off += XvdUserDataPackageFilesHeader::SIZE as u64;
+            let mut buf = XvdUserDataPackageFileEntry::buffer();
             for _ in 0..user_data_package_files_header.file_count {
                 file.seek(SeekFrom::Start(off)).await?;
-                let user_data_package_file_entry =
-                    XvdUserDataPackageFileEntry::read(&mut file).await?;
-                off += XvdUserDataPackageFileEntry::RAW_SIZE as u64;
+                file.read_exact(&mut buf).await?;
+                let user_data_package_file_entry = XvdUserDataPackageFileEntry::from_array(&buf);
+                off += XvdUserDataPackageFileEntry::SIZE as u64;
                 let o = user_data_package_file_entry.offset;
                 let s: u32 = user_data_package_file_entry.size;
                 let fullname = user_data_package_file_entry.file_path;
@@ -478,7 +501,7 @@ impl XvdFile {
                 files.insert(
                     pfull_name,
                     UserPackageFile {
-                        offset: user_data_offset + XvdUserDataHeader::RAW_SIZE as u64 + o as u64,
+                        offset: user_data_offset + XvdUserDataHeader::SIZE as u64 + o as u64,
                         length: s as u64,
                     },
                 );
@@ -497,13 +520,19 @@ impl XvdFile {
     {
         let mut file = BufReader::with_capacity(segment_metadata.length as usize, file);
         file.seek(SeekFrom::Start(segment_metadata.offset)).await?;
-        let segment_header = XvdSegmentMetadataHeader::read(&mut file).await?;
+        let segment_header = {
+            let mut buf = XvdSegmentMetadataHeader::buffer();
+            file.read_exact(&mut buf).await?;
+            XvdSegmentMetadataHeader::try_from_array(&buf)?
+        };
         let paths_offset =
             segment_header.header_length as u64 + segment_header.segment_count as u64 * 0x10;
 
         let mut segments = Vec::with_capacity(segment_header.segment_count as usize);
+        let mut buf = XvdSegmentMetadataSegment::buffer();
         for _ in 0..segment_header.segment_count {
-            let segment = XvdSegmentMetadataSegment::read(&mut file).await?;
+            file.read_exact(&mut buf).await?;
+            let segment = XvdSegmentMetadataSegment::from_array(&buf);
             segments.push(segment);
         }
 

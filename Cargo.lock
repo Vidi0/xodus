@@ -3210,32 +3210,20 @@ dependencies = [
  "chrono",
  "futures-util",
  "gpt",
+ "msixvc-common",
  "ntfs",
  "num_enum",
  "reqwest 0.13.4",
  "thiserror 2.0.20",
  "tokio",
  "tokio-util",
+ "typenum",
  "uuid",
  "zerocopy",
 ]
 
 [[package]]
 name = "msixvc-common"
-version = "0.1.0"
-dependencies = [
- "bitflags 2.13.1",
- "chrono",
- "generic-array 1.4.5",
- "num_enum",
- "thiserror 2.0.20",
- "tokio",
- "typenum",
- "uuid",
-]
-
-[[package]]
-name = "msixvc_new"
 version = "0.1.0"
 dependencies = [
  "bitflags 2.13.1",
