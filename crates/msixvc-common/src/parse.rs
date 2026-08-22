@@ -380,5 +380,33 @@ mod tests {
         requires_binary_parse::<u8>();
         requires_binary_parse::<[u8; 0]>();
         requires_binary_parse::<[u8; 1]>();
+
+        requires_binary_parse::<i8>();
+        requires_binary_parse::<[i8; 0]>();
+        requires_binary_parse::<[i8; 1]>();
+    }
+
+    #[test]
+    fn test_parse() {
+        // Test that the basic parse operations work: parsing `u8` and `i8` integers,
+        // advancing the reader and returning a value.
+
+        const DATA: GenericArray<u8, typenum::U6> =
+            GenericArray::from_array([1, -1i8 as u8, 0, 0, 0, 255]);
+
+        let res = parse(&DATA, |r| {
+            let (i, r) = r.read::<u8>();
+            assert_eq!(i, 1);
+
+            let (i, r) = r.read::<i8>();
+            assert_eq!(i, -1);
+
+            let (bytes, r) = r.advance::<typenum::U3>();
+            assert_eq!(bytes.into_array(), [0, 0, 0]);
+
+            r.read::<u8>()
+        });
+
+        assert_eq!(res, 255);
     }
 }
