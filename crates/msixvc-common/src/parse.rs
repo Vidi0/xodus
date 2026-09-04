@@ -369,21 +369,19 @@ mod tests {
 
     #[test]
     fn test_implements_binary_parse() {
-        const fn requires_binary_parse<T: BinaryParse>() {}
+        fn requires_binary_parse<T: BinaryParse>() {}
 
         // Zero-sized types should be able to implement `BinaryParse`, too.
 
         requires_binary_parse::<()>();
-        requires_binary_parse::<[(); 0]>();
-        requires_binary_parse::<[(); 1]>();
-
         requires_binary_parse::<u8>();
-        requires_binary_parse::<[u8; 0]>();
-        requires_binary_parse::<[u8; 1]>();
-
         requires_binary_parse::<i8>();
-        requires_binary_parse::<[i8; 0]>();
-        requires_binary_parse::<[i8; 1]>();
+
+        // Nested arrays should also be able to implement `BinaryParse`.
+
+        requires_binary_parse::<[[[(); 1]; 0]; 1]>();
+        requires_binary_parse::<[[[u8; 1]; 0]; 1]>();
+        requires_binary_parse::<[[[i8; 1]; 0]; 1]>();
     }
 
     #[test]
