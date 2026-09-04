@@ -385,6 +385,22 @@ mod tests {
     }
 
     #[test]
+    fn test_deep_array_nesting() {
+        // A very deep nested array should also implement `BinaryParse`.
+
+        type DeepArray<T> = [[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[T; 1]; 1]; 1]; 1]; 1]; 1]; 1]; 1]; 1]; 1]; 1]; 1]; 1];
+            1]; 1]; 1]; 1]; 1]; 1]; 1]; 1]; 1]; 1]; 1]; 1]; 1]; 1]; 1];
+            1]; 1]; 1]; 1];
+
+        let int: u8 = 53;
+        let arr = DeepArray::<u8>::from_array(&[int].into());
+        let int_new: u8 = arr[0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0]
+            [0][0][0][0][0][0][0][0][0];
+
+        assert_eq!(int, int_new);
+    }
+
+    #[test]
     fn test_parse() {
         // Test that the basic parse operations work: parsing `u8` and `i8` integers,
         // advancing the reader and returning a value.
