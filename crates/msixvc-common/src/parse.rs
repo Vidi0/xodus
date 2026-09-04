@@ -162,7 +162,7 @@ pub trait BinaryParse {
     /// Parse from an array.
     #[inline]
     fn from_array(array: &GenericArray<u8, Self::Size>) -> Self::Output {
-        parse(array, Self::parse)
+        Self::parse(BytesReader(array)).0
     }
 
     /// Parse from a slice.
@@ -199,7 +199,7 @@ pub trait BinaryTryParse {
     /// Parse from an array.
     #[inline]
     fn try_from_array(array: &GenericArray<u8, Self::Size>) -> Result<Self::Output, Self::Error> {
-        try_parse(array, Self::try_parse)
+        Self::try_parse(BytesReader(array)).map(|(t, _reader)| t)
     }
 
     /// Parse from a slice.
