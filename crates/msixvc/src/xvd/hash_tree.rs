@@ -49,15 +49,14 @@ impl<R: AsyncRead> PageStream<R> {
                 Poll::Ready(Err(e)) if let ErrorKind::Interrupted = e.kind() => {}
                 Poll::Ready(Err(e)) => return Poll::Ready(Err(e)),
                 Poll::Ready(Ok(())) => {
-                    let advanced = buf.filled().len();
-                    *this.filled += advanced;
-
-                    if advanced == 0 {
+                    if buf.filled().is_empty() {
                         return Poll::Ready(Err(Error::new(
                             ErrorKind::UnexpectedEof,
                             "failed to fill whole buffer",
                         )));
                     }
+
+                    *this.filled += buf.filled().len();
                 }
             }
         }
