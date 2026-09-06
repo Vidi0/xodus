@@ -41,6 +41,7 @@ impl<R: AsyncRead> PageStream<R> {
         let mut this = self.project();
 
         while *this.filled < PAGE_SIZE {
+            // `buf` contains the unfilled portion of the buffer.
             let mut buf = ReadBuf::new(&mut this.buf[*this.filled..]);
 
             match this.reader.as_mut().poll_read(cx, &mut buf) {
@@ -61,9 +62,9 @@ impl<R: AsyncRead> PageStream<R> {
             }
         }
 
-        // `this.filled` is exactly `PAGE_SIZE`, so return the page and return
-        // the buffer. The buffer doesn't need to be emptied because we set
-        // `this.filled` to 0, so the buffer is allowed to contain garbage.
+        // `this.filled` is exactly `PAGE_SIZE`, so return the page buffer. The
+        // buffer doesn't need to be zeroed because we set `this.filled` to 0,
+        // so every byte is treated as garbage.
 
         *this.filled = 0;
 
