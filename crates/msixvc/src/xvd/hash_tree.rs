@@ -185,3 +185,42 @@ where
         Poll::Ready(Some(Ok(first)))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use std::io::Cursor;
+    use std::pin::pin;
+    use std::task::Waker;
+
+    #[test]
+    fn test_page_stream() {
+        // Fill a buffer with test data.
+        let test_data: [u8; PAGE_SIZE * 3 + 84] = std::array::from_fn(|i| {
+            // Make sure that the first `u8::MAX` pages are all different.
+            let page = i / PAGE_SIZE;
+            (page as u8).wrapping_add(i as u8)
+        });
+
+        // Create a `PageStream` over the test data.
+        let mut page_stream = pin!(PageStream::new(Cursor::new(&test_data)));
+        let mut cx = Context::from_waker(Waker::noop());
+
+        // For each full page in `test_data`, check that `PageStream` returns
+        // exactly the same data.
+        for chunk in test_data.as_chunks::<PAGE_SIZE>().0 {
+            match page_stream.as_mut().poll_next_page(&mut cx) {
+                Poll::Ready(Ok(buf)) => assert_eq!(buf, chunk),
+                _ => unreachable!("An in-memory Cursor mustn't block nor fail"),
+            }
+        }
+
+        // After we've consumed every full page, the stream must return an
+        // `io::ErrorKind::UnexpectedEof` error.
+        match page_stream.as_mut().poll_next_page(&mut cx) {
+            Poll::Ready(Err(e)) => assert_eq!(e.kind(), io::ErrorKind::UnexpectedEof),
+            _ => unreachable!("After consuming all the pages, it must return an error"),
+        }
+    }
+}
