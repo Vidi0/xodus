@@ -112,7 +112,7 @@ where
         // here because it's a single hash, so it doesn't block the thread for long.
 
         let expected_hash: HashEntry = this.level_1_hashes[*this.current_page];
-        let hash: HashEntry = sha2::Sha256::digest(**this.buf)[..HASH_ENTRY_LENGTH]
+        let hash: HashEntry = sha2::Sha256::digest(this.buf.as_slice())[..HASH_ENTRY_LENGTH]
             .try_into()
             .unwrap();
 
