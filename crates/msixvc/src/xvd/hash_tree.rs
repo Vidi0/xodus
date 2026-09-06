@@ -9,20 +9,73 @@ use tokio::io::{AsyncRead, ReadBuf};
 
 use std::cmp;
 use std::collections::VecDeque;
-use std::io::{Error, ErrorKind};
+use std::io::{self, Error, ErrorKind};
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
 type HashEntry = [u8; HASH_ENTRY_LENGTH];
+type Page = [u8; PAGE_SIZE];
+
+#[pin_project]
+struct PageStream<R> {
+    #[pin]
+    reader: R,
+
+    buf: Box<Page>,
+    filled: usize,
+}
+
+impl<R: AsyncRead> PageStream<R> {
+    pub fn new(reader: R) -> Self {
+        Self {
+            reader,
+            buf: Box::new([0u8; PAGE_SIZE]),
+            filled: 0,
+        }
+    }
+
+    pub fn poll_next_page<'a>(
+        self: Pin<&'a mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<io::Result<&'a Page>> {
+        let mut this = self.project();
+
+        while *this.filled < PAGE_SIZE {
+            let mut buf = ReadBuf::new(&mut this.buf[*this.filled..]);
+
+            match this.reader.as_mut().poll_read(cx, &mut buf) {
+                Poll::Pending => return Poll::Pending,
+                Poll::Ready(Err(e)) if let ErrorKind::Interrupted = e.kind() => {}
+                Poll::Ready(Err(e)) => return Poll::Ready(Err(e)),
+                Poll::Ready(Ok(())) => {
+                    let advanced = buf.filled().len();
+                    *this.filled += advanced;
+
+                    if advanced == 0 {
+                        return Poll::Ready(Err(Error::new(
+                            ErrorKind::UnexpectedEof,
+                            "failed to fill whole buffer",
+                        )));
+                    }
+                }
+            }
+        }
+
+        // `this.filled` is exactly `PAGE_SIZE`, so return the page and return
+        // the buffer. The buffer doesn't need to be emptied because we set
+        // `this.filled` to 0, so the buffer is allowed to contain garbage.
+
+        *this.filled = 0;
+
+        Poll::Ready(Ok(this.buf))
+    }
+}
 
 /// Stream over level 0 hash entries.
 #[pin_project]
 pub struct HashTreeStream<R> {
     #[pin]
-    reader: R,
-
-    buf: Box<[u8; PAGE_SIZE]>,
-    filled: usize,
+    reader: PageStream<R>,
 
     level_1_hashes: Box<[HashEntry]>,
     current_page: usize,
@@ -40,9 +93,7 @@ impl<R: AsyncRead> HashTreeStream<R> {
         );
 
         Self {
-            reader,
-            buf: Box::new([0u8; PAGE_SIZE]),
-            filled: 0,
+            reader: PageStream::new(reader),
             level_1_hashes,
             current_page: 0,
             remaining_hashes: level_0_hashes,
@@ -75,7 +126,7 @@ where
     type Item = Result<HashEntry, HashTreeStreamError>;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        let mut this = self.project();
+        let this = self.project();
 
         if let Some(hash) = this.parsed_entries.pop_front() {
             return Poll::Ready(Some(Ok(hash)));
@@ -85,34 +136,18 @@ where
             return Poll::Ready(None);
         }
 
-        while *this.filled < PAGE_SIZE {
-            let mut buf = ReadBuf::new(&mut this.buf[*this.filled..]);
+        let buf = match this.reader.poll_next_page(cx) {
+            Poll::Pending => return Poll::Pending,
+            Poll::Ready(Err(e)) => return Poll::Ready(Some(Err(e.into()))),
+            Poll::Ready(Ok(buf)) => buf,
+        };
 
-            match this.reader.as_mut().poll_read(cx, &mut buf) {
-                Poll::Pending => return Poll::Pending,
-                Poll::Ready(Err(e)) if let ErrorKind::Interrupted = e.kind() => {}
-                Poll::Ready(Err(e)) => return Poll::Ready(Some(Err(e.into()))),
-                Poll::Ready(Ok(())) => {
-                    let advanced = buf.filled().len();
-                    *this.filled += advanced;
-
-                    if advanced == 0 {
-                        return Poll::Ready(Some(Err(Error::new(
-                            ErrorKind::UnexpectedEof,
-                            "failed to fill whole buffer",
-                        )
-                        .into())));
-                    }
-                }
-            }
-        }
-
-        // `this.filled` is exactly `PAGE_SIZE`, so check that the hash of the
-        // current page is the expected one. It's fine to calculate the hash
-        // here because it's a single hash, so it doesn't block the thread for long.
+        // Check that the hash of the current page is the expected one. It's fine
+        // to calculate the hash here because it's a single hash, so it doesn't
+        // block the thread for long.
 
         let expected_hash: HashEntry = this.level_1_hashes[*this.current_page];
-        let hash: HashEntry = sha2::Sha256::digest(this.buf.as_slice())[..HASH_ENTRY_LENGTH]
+        let hash: HashEntry = sha2::Sha256::digest(buf)[..HASH_ENTRY_LENGTH]
             .try_into()
             .unwrap();
 
@@ -129,8 +164,7 @@ where
         assert!(*this.remaining_hashes > 0);
         let hashes_to_parse = cmp::min(*this.remaining_hashes, HASH_ENTRIES_IN_PAGE as usize);
 
-        let mut hash_entry_iter = this
-            .buf
+        let mut hash_entry_iter = buf
             .as_chunks::<HASH_ENTRY_LENGTH>()
             .0
             .iter()
@@ -148,9 +182,6 @@ where
         // are returned in the following calls to `poll_next`.
         this.parsed_entries.extend(hash_entry_iter);
 
-        // We don't need to zero `buf` because we set `filled` to 0, so the
-        // remaining bytes are allowed to be garbage.
-        *this.filled = 0;
         *this.remaining_hashes -= hashes_to_parse;
         *this.current_page += 1;
 
