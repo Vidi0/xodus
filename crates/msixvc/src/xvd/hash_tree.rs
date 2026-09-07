@@ -7,8 +7,6 @@ use sha2::Digest;
 use thiserror::Error;
 use tokio::io::{AsyncRead, ReadBuf};
 
-use std::cmp;
-use std::collections::VecDeque;
 use std::hint;
 use std::io::{self, Error, ErrorKind};
 use std::pin::Pin;
@@ -36,7 +34,6 @@ impl<R: AsyncRead> PageStream<R> {
     }
 
     #[inline]
-    #[expect(dead_code)]
     pub fn buffer(&self) -> Option<&Page> {
         (self.filled == PAGE_SIZE).then_some(&self.buf)
     }
@@ -84,11 +81,11 @@ pub struct HashTreeStream<R> {
     #[pin]
     reader: PageStream<R>,
 
+    remaining_hashes: usize,
+    next_entry_in_page: usize,
+
     level_1_hashes: Box<[HashEntry]>,
     current_page: usize,
-
-    remaining_hashes: usize,
-    parsed_entries: VecDeque<HashEntry>,
 }
 
 impl<R: AsyncRead> HashTreeStream<R> {
@@ -101,10 +98,10 @@ impl<R: AsyncRead> HashTreeStream<R> {
 
         Self {
             reader: PageStream::new(reader),
+            remaining_hashes: level_0_hashes,
+            next_entry_in_page: 0,
             level_1_hashes,
             current_page: 0,
-            remaining_hashes: level_0_hashes,
-            parsed_entries: VecDeque::with_capacity(HASH_ENTRIES_IN_PAGE as usize),
         }
     }
 }
@@ -135,12 +132,21 @@ where
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let this = self.project();
 
-        if let Some(hash) = this.parsed_entries.pop_front() {
-            return Poll::Ready(Some(Ok(hash)));
-        }
-
         if *this.remaining_hashes == 0 {
             return Poll::Ready(None);
+        }
+
+        // If there are remaining hash entries in the buffer that have not been
+        // returned, then return the next one and advance the counter.
+        if let Some(buf) = this.reader.buffer()
+            && let Some(hash) = buf
+                .as_chunks::<HASH_ENTRY_LENGTH>()
+                .0
+                .get(*this.next_entry_in_page)
+        {
+            *this.next_entry_in_page += 1;
+            *this.remaining_hashes -= 1;
+            return Poll::Ready(Some(Ok(*hash)));
         }
 
         let buf = match this.reader.poll_next_page(cx)? {
@@ -166,27 +172,16 @@ where
             })));
         }
 
-        // Parse the current page and reset the buffer.
+        // Return the first hash of the current page, and set `next_entry_in_page`
+        // to 1 so subsequent calls to `poll_next` return the next entries.
 
         assert!(*this.remaining_hashes > 0);
-        let hashes_to_parse = cmp::min(*this.remaining_hashes, HASH_ENTRIES_IN_PAGE as usize);
-        let mut hash_entry_iter = buf.as_chunks::<HASH_ENTRY_LENGTH>().0[..hashes_to_parse].iter();
 
-        // Obtain the first hash entry independently, as it will be returned at
-        // the end of the function. It is guaranteed that there is at least one
-        // remaining hash entry.
-        let first = *hash_entry_iter
-            .next()
-            .expect("there must be at least one remaining hash entry");
-
-        // Push the remaining entries into the `parsed_entries` buffer so they
-        // are returned in the following calls to `poll_next`.
-        this.parsed_entries.extend(hash_entry_iter);
-
-        *this.remaining_hashes -= hashes_to_parse;
+        *this.next_entry_in_page = 1;
+        *this.remaining_hashes -= 1;
         *this.current_page += 1;
 
-        Poll::Ready(Some(Ok(first)))
+        Poll::Ready(Some(Ok(*buf.first_chunk::<HASH_ENTRY_LENGTH>().unwrap())))
     }
 }
 
