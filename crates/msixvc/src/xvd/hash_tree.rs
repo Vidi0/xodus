@@ -206,20 +206,26 @@ mod tests {
         let mut page_stream = pin!(PageStream::new(Cursor::new(&test_data)));
         let mut cx = Context::from_waker(Waker::noop());
 
+        assert_eq!(page_stream.buffer(), None);
+
         // For each full page in `test_data`, check that `PageStream` returns
         // exactly the same data.
         for chunk in test_data.as_chunks::<PAGE_SIZE>().0 {
-            match page_stream.as_mut().poll_next_page(&mut cx) {
-                Poll::Ready(Ok(buf)) => assert_eq!(buf, chunk),
-                _ => unreachable!("An in-memory Cursor mustn't block nor fail"),
-            }
+            let Poll::Ready(Ok(buf)) = page_stream.as_mut().poll_next_page(&mut cx) else {
+                unreachable!("An in-memory Cursor mustn't block nor fail");
+            };
+
+            assert_eq!(buf, chunk);
+            assert_eq!(page_stream.buffer(), Some(chunk));
         }
 
         // After we've consumed every full page, the stream must return an
         // `io::ErrorKind::UnexpectedEof` error.
-        match page_stream.as_mut().poll_next_page(&mut cx) {
-            Poll::Ready(Err(e)) => assert_eq!(e.kind(), io::ErrorKind::UnexpectedEof),
-            _ => unreachable!("After consuming all the pages, it must return an error"),
-        }
+        let Poll::Ready(Err(e)) = page_stream.as_mut().poll_next_page(&mut cx) else {
+            unreachable!("After consuming all the pages, it must return an error");
+        };
+
+        assert_eq!(e.kind(), io::ErrorKind::UnexpectedEof);
+        assert_eq!(page_stream.buffer(), None);
     }
 }
