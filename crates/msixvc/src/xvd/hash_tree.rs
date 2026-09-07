@@ -53,7 +53,7 @@ impl<R: AsyncRead> PageStream<R> {
     ///
     /// The caller must stop calling this function once the stream has returned
     /// the expected number of pages because it will return an
-    /// [`ErrorKind::UnexpectedEof`] error otherwire.
+    /// [`ErrorKind::UnexpectedEof`] error otherwise.
     ///
     /// # Return value
     ///
