@@ -1,7 +1,7 @@
 use crate::layout::PAGE_SIZE;
 use crate::models::xvd::layout::{HASH_ENTRIES_IN_PAGE, HASH_ENTRY_LENGTH};
 
-use futures_util::stream::{FusedStream, Stream};
+use futures_util::stream::Stream;
 use pin_project::pin_project;
 use sha2::Digest;
 use thiserror::Error;
@@ -216,15 +216,6 @@ where
         *this.current_page += 1;
 
         Poll::Ready(Some(Ok(*buf.first_chunk::<HASH_ENTRY_LENGTH>().unwrap())))
-    }
-}
-
-impl<R> FusedStream for HashTreeStream<R>
-where
-    R: AsyncRead,
-{
-    fn is_terminated(&self) -> bool {
-        self.remaining_hashes == 0
     }
 }
 
