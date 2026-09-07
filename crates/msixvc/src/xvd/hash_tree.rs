@@ -15,6 +15,10 @@ use std::task::{Context, Poll};
 type HashEntry = [u8; HASH_ENTRY_LENGTH];
 type Page = [u8; PAGE_SIZE];
 
+/// The `PageStream<R>` struct wraps an asynchronous reader and yields data
+/// one page at a time.
+///
+/// See [`PageStream::poll_next_page`] for more information.
 #[pin_project]
 struct PageStream<R> {
     #[pin]
@@ -25,6 +29,7 @@ struct PageStream<R> {
 }
 
 impl<R: AsyncRead> PageStream<R> {
+    /// Creates a new [`PageStream<R>`] that wraps over a reader.
     pub fn new(reader: R) -> Self {
         Self {
             reader,
@@ -33,11 +38,39 @@ impl<R: AsyncRead> PageStream<R> {
         }
     }
 
+    /// Returns the last page returned by [`Self::poll_next_page`].
+    ///
+    /// Returns `None` before the first call to [`Self::poll_next_page`], and
+    /// after a call that returned [`Poll::Pending`] or an error. This function
+    /// returns the same page until the next call to [`Self::poll_next_page`].
     #[inline]
     pub fn buffer(&self) -> Option<&Page> {
         (self.filled == PAGE_SIZE).then_some(&self.buf)
     }
 
+    /// Attempt to pull out the next page of this stream, registering the
+    /// current task for wakeup if the page is not yet available.
+    ///
+    /// The caller must stop calling this function once the stream has returned
+    /// the expected number of pages because it will return an
+    /// [`ErrorKind::UnexpectedEof`] error otherwire.
+    ///
+    /// # Return value
+    ///
+    /// There are several possible return values, each indicating a distinct
+    /// stream state:
+    ///
+    /// - `Poll::Pending` means that this stream's next page is not ready yet.
+    ///   The current task will be notified when the next value may be ready.
+    ///
+    /// - `Poll::Ready(Err(err))` means that the underlying reader has returned
+    ///   an error. The stream must not be polled again.
+    ///
+    /// - `Poll::Ready(Ok(page))` means that the stream has successfully
+    ///   produced a value, `page`, and may produce further values on subsequent
+    ///   [`Self::poll_next_page`] calls. The page can also be accessed through
+    ///   [`Self::buffer`] until the next call to [`Self::poll_next_page`],
+    ///   which will reset the buffer.
     pub fn poll_next_page<'a>(
         self: Pin<&'a mut Self>,
         cx: &mut Context<'_>,
@@ -67,11 +100,12 @@ impl<R: AsyncRead> PageStream<R> {
             }
         }
 
-        // `this.filled` is exactly `PAGE_SIZE`, so return `Poll::Ready`.
-        // `this.filled` doesn't need to be set to 0 because the next call to
-        // `poll_next_page` will do it for us.
-
+        // `this.filled` is exactly `PAGE_SIZE`, so the page buffer is now full.
         assert_eq!(*this.filled, PAGE_SIZE);
+
+        // `this.filled` mustn't be set to 0 here because we want to be able to
+        // obtain the filled buffer through `Self::buffer`. The next call to
+        // `poll_next_page` will clear the buffer in order to start a new poll.
 
         Poll::Ready(Ok(this.buf))
     }
