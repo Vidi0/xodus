@@ -44,7 +44,7 @@ impl<R: AsyncRead> PageStream<R> {
     ) -> Poll<io::Result<&'a Page>> {
         let mut this = self.project();
 
-        // If the last page is fully filled, then reset the buffer.
+        // If the last page is fully filled, reset the buffer.
         if *this.filled == PAGE_SIZE {
             *this.filled = 0;
         }
