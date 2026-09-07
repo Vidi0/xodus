@@ -133,10 +133,9 @@ where
             return Poll::Ready(None);
         }
 
-        let buf = match this.reader.poll_next_page(cx) {
+        let buf = match this.reader.poll_next_page(cx)? {
             Poll::Pending => return Poll::Pending,
-            Poll::Ready(Err(e)) => return Poll::Ready(Some(Err(e.into()))),
-            Poll::Ready(Ok(buf)) => buf,
+            Poll::Ready(buf) => buf,
         };
 
         // Check that the hash of the current page is the expected one. It's fine
