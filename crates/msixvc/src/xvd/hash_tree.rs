@@ -159,18 +159,12 @@ where
 
         assert!(*this.remaining_hashes > 0);
         let hashes_to_parse = cmp::min(*this.remaining_hashes, HASH_ENTRIES_IN_PAGE as usize);
-
-        let mut hash_entry_iter = buf
-            .as_chunks::<HASH_ENTRY_LENGTH>()
-            .0
-            .iter()
-            .copied()
-            .take(hashes_to_parse);
+        let mut hash_entry_iter = buf.as_chunks::<HASH_ENTRY_LENGTH>().0[..hashes_to_parse].iter();
 
         // Obtain the first hash entry independently, as it will be returned at
         // the end of the function. It is guaranteed that there is at least one
         // remaining hash entry.
-        let first = hash_entry_iter
+        let first = *hash_entry_iter
             .next()
             .expect("there must be at least one remaining hash entry");
 
