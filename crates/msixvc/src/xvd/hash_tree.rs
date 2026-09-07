@@ -175,7 +175,7 @@ where
         // Return the first hash of the current page, and set `next_entry_in_page`
         // to 1 so subsequent calls to `poll_next` return the next entries.
 
-        assert!(*this.remaining_hashes > 0);
+        debug_assert!(*this.remaining_hashes > 0);
 
         *this.next_entry_in_page = 1;
         *this.remaining_hashes -= 1;
