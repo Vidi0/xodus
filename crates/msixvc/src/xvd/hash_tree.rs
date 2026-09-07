@@ -9,6 +9,7 @@ use tokio::io::{AsyncRead, ReadBuf};
 
 use std::cmp;
 use std::collections::VecDeque;
+use std::hint;
 use std::io::{self, Error, ErrorKind};
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -148,6 +149,7 @@ where
             .unwrap();
 
         if hash != expected_hash {
+            hint::cold_path();
             return Poll::Ready(Some(Err(HashTreeStreamError::HashMismatch {
                 page_index: *this.current_page,
                 expected: expected_hash,
