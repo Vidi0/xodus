@@ -71,7 +71,7 @@ impl<R: AsyncRead> PageStream<R> {
         // `this.filled` doesn't need to be set to 0 because the next call to
         // `poll_next_page` will do it for us.
 
-        debug_assert_eq!(*this.filled, PAGE_SIZE);
+        assert_eq!(*this.filled, PAGE_SIZE);
 
         Poll::Ready(Ok(this.buf))
     }
@@ -176,8 +176,6 @@ where
 
         // Return the first hash of the current page, and set `next_entry_in_page`
         // to 1 so subsequent calls to `poll_next` return the next entries.
-
-        debug_assert!(*this.remaining_hashes > 0);
 
         *this.next_entry_in_page = 1;
         *this.remaining_hashes -= 1;
