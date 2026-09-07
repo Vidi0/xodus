@@ -35,11 +35,22 @@ impl<R: AsyncRead> PageStream<R> {
         }
     }
 
+    #[inline]
+    #[expect(dead_code)]
+    pub fn buffer(&self) -> Option<&Page> {
+        (self.filled == PAGE_SIZE).then_some(&self.buf)
+    }
+
     pub fn poll_next_page<'a>(
         self: Pin<&'a mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<io::Result<&'a Page>> {
         let mut this = self.project();
+
+        // If the last page is fully filled, then reset the buffer.
+        if *this.filled == PAGE_SIZE {
+            *this.filled = 0;
+        }
 
         while *this.filled < PAGE_SIZE {
             // `buf` contains the unfilled portion of the buffer.
@@ -59,11 +70,9 @@ impl<R: AsyncRead> PageStream<R> {
             }
         }
 
-        // `this.filled` is exactly `PAGE_SIZE`, so return the page buffer. The
-        // buffer doesn't need to be zeroed because we set `this.filled` to 0,
-        // so every byte is treated as garbage.
-
-        *this.filled = 0;
+        // `this.filled` is exactly `PAGE_SIZE`, so return `Poll::Ready`.
+        // `this.filled` doesn't need to be set to 0 because the next call to
+        // `poll_next_page` will do it for us.
 
         Poll::Ready(Ok(this.buf))
     }
