@@ -71,6 +71,8 @@ impl<R: AsyncRead> PageStream<R> {
         // `this.filled` doesn't need to be set to 0 because the next call to
         // `poll_next_page` will do it for us.
 
+        debug_assert_eq!(*this.filled, PAGE_SIZE);
+
         Poll::Ready(Ok(this.buf))
     }
 }
