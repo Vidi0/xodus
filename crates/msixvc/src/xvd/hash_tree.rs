@@ -111,12 +111,20 @@ impl<R: AsyncRead> PageStream<R> {
     }
 }
 
+/// The `PageVerifier` struct is used to verify the integrity of pages from a
+/// list of hashes.
+///
+/// The hashes must be allocated in memory, so this struct cannot be used if
+/// the hashes have yet to be read from a reader.
+///
+/// See [`PageVerifier::verify_next_page`] for more information.
 struct PageVerifier {
     hashes: Box<[HashEntry]>,
     current_page: usize,
 }
 
 impl PageVerifier {
+    /// Creates a new [`PageVerifier`] with a list of hashes.
     pub fn new(hashes: Box<[HashEntry]>) -> Self {
         Self {
             hashes,
@@ -124,6 +132,15 @@ impl PageVerifier {
         }
     }
 
+    /// Verifies that the provided `page` is intact.
+    ///
+    /// This function must be called with the pages in the same order as the
+    /// hashes provided in [`PageVerifier::new`], and must only be called as
+    /// many times as there are hashes.
+    ///
+    /// On error, the internal cursor isn't advanced, so the next call to
+    /// [`PageVerifier::verify_next_page`] must provide a page for the same
+    /// page index.
     pub fn verify_next_page(&mut self, page: &Page) -> Result<(), HashTreeStreamError> {
         assert!(self.current_page < self.hashes.len());
 
