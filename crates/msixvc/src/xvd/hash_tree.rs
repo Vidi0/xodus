@@ -261,6 +261,7 @@ where
 mod tests {
     use super::*;
 
+    use std::assert_matches;
     use std::io::Cursor;
     use std::pin::pin;
     use std::task::Waker;
@@ -299,5 +300,57 @@ mod tests {
 
         assert_eq!(e.kind(), io::ErrorKind::UnexpectedEof);
         assert_eq!(page_stream.buffer(), None);
+    }
+
+    #[test]
+    fn test_page_verifier() {
+        let mut pages = [[0u8; PAGE_SIZE], [1u8; PAGE_SIZE], [2u8; PAGE_SIZE]];
+        let hashes = [
+            // Truncated Sha256 of a Page full of bytes `0u8`.
+            [
+                173, 127, 172, 178, 88, 111, 198, 233, 102, 192, 4, 215, 209, 209, 107, 2, 79, 88,
+                5, 255, 124, 180, 124, 122,
+            ],
+            // Truncated Sha256 of a Page full of bytes `1u8`.
+            [
+                52, 49, 56, 55, 33, 81, 12, 241, 194, 17, 222, 2, 124, 249, 88, 193, 131, 225, 109,
+                181, 250, 187, 107, 35,
+            ],
+            // Truncated Sha256 of a Page full of bytes `2u8`.
+            [
+                48, 214, 188, 22, 78, 165, 65, 136, 170, 157, 240, 193, 79, 32, 196, 251, 200, 161,
+                85, 197, 100, 75, 204, 158,
+            ],
+        ];
+
+        let mut page_verifier = PageVerifier::new(Box::new(hashes));
+
+        for page in &mut pages {
+            // Place invalid data into the page.
+            page[0] = !page[0];
+
+            // Check that the page verification fails. The `PageVerifier` cursor
+            // mustn't be advanced so we can retry the same page later.
+            let err = page_verifier.verify_next_page(page).unwrap_err();
+            assert_matches!(err, HashTreeStreamError::HashMismatch { .. });
+
+            // Restore the page to its original state.
+            page[0] = !page[0];
+
+            // Check that now the page verification succeeds.
+            page_verifier.verify_next_page(page).unwrap();
+        }
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_page_verifier_oob() {
+        let page = [0u8; PAGE_SIZE];
+        let hashes = [[0u8; 24]; 0];
+
+        let mut page_verifier = PageVerifier::new(Box::new(hashes));
+
+        // When running out of hashes, the `PageVerifier` should panic.
+        let _ = page_verifier.verify_next_page(&page);
     }
 }
