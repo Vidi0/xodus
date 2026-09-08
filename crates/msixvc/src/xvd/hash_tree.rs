@@ -3,7 +3,7 @@ use crate::models::xvd::layout::{HASH_ENTRIES_IN_PAGE, HASH_ENTRY_LENGTH};
 
 use futures_util::stream::Stream;
 use pin_project::pin_project;
-use sha2::Digest;
+use sha2::{Digest, Sha256};
 use thiserror::Error;
 use tokio::io::{AsyncRead, ReadBuf};
 
@@ -111,6 +111,42 @@ impl<R: AsyncRead> PageStream<R> {
     }
 }
 
+struct PageVerifier {
+    hashes: Box<[HashEntry]>,
+    current_page: usize,
+}
+
+impl PageVerifier {
+    pub fn new(hashes: Box<[HashEntry]>) -> Self {
+        Self {
+            hashes,
+            current_page: 0,
+        }
+    }
+
+    pub fn verify_next_page(&mut self, page: &Page) -> Result<(), HashTreeStreamError> {
+        assert!(self.current_page < self.hashes.len());
+
+        let expected_hash = self.hashes[self.current_page];
+        let hash: HashEntry = Sha256::digest(page)[..HASH_ENTRY_LENGTH]
+            .try_into()
+            .unwrap();
+
+        if expected_hash != hash {
+            hint::cold_path();
+            return Err(HashTreeStreamError::HashMismatch {
+                page_index: self.current_page,
+                expected: expected_hash,
+                got: hash,
+            });
+        }
+
+        self.current_page += 1;
+
+        Ok(())
+    }
+}
+
 /// Stream over level 0 hash entries.
 #[pin_project]
 pub struct HashTreeStream<R> {
@@ -120,8 +156,7 @@ pub struct HashTreeStream<R> {
     remaining_hashes: usize,
     next_entry_in_page: usize,
 
-    level_1_hashes: Box<[HashEntry]>,
-    current_page: usize,
+    page_verifier: PageVerifier,
 }
 
 impl<R: AsyncRead> HashTreeStream<R> {
@@ -136,8 +171,7 @@ impl<R: AsyncRead> HashTreeStream<R> {
             reader: PageStream::new(reader),
             remaining_hashes: level_0_hashes,
             next_entry_in_page: 0,
-            level_1_hashes,
-            current_page: 0,
+            page_verifier: PageVerifier::new(level_1_hashes),
         }
     }
 }
@@ -194,26 +228,13 @@ where
         // to calculate the hash here because it's a single hash, so it doesn't
         // block the thread for long.
 
-        let expected_hash: HashEntry = this.level_1_hashes[*this.current_page];
-        let hash: HashEntry = sha2::Sha256::digest(buf)[..HASH_ENTRY_LENGTH]
-            .try_into()
-            .unwrap();
-
-        if hash != expected_hash {
-            hint::cold_path();
-            return Poll::Ready(Some(Err(HashTreeStreamError::HashMismatch {
-                page_index: *this.current_page,
-                expected: expected_hash,
-                got: hash,
-            })));
-        }
+        this.page_verifier.verify_next_page(buf)?;
 
         // Return the first hash of the current page, and set `next_entry_in_page`
         // to 1 so subsequent calls to `poll_next` return the next entries.
 
         *this.remaining_hashes -= 1;
         *this.next_entry_in_page = 1;
-        *this.current_page += 1;
 
         Poll::Ready(Some(Ok(*buf.first_chunk::<HASH_ENTRY_LENGTH>().unwrap())))
     }
