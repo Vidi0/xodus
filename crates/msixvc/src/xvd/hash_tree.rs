@@ -115,36 +115,28 @@ impl<R: AsyncRead> PageStream<R> {
 /// list of hashes.
 ///
 /// The hashes must be allocated in memory, so this struct cannot be used if
-/// the hashes have yet to be read from a reader.
-///
-/// See [`PageVerifier::verify_next_page`] for more information.
+/// the hashes are not in memory yet. If the hashes have to be read from an
+/// [`AsyncRead`]er, see [`HashTreeStream`] for parsing a hash table into an
+/// async [`Stream`] of hashes.
 struct PageVerifier {
     hashes: Box<[HashEntry]>,
-    current_page: usize,
 }
 
 impl PageVerifier {
     /// Creates a new [`PageVerifier`] with a list of hashes.
     pub fn new(hashes: Box<[HashEntry]>) -> Self {
-        Self {
-            hashes,
-            current_page: 0,
-        }
+        Self { hashes }
     }
 
     /// Verifies that the provided `page` is intact.
     ///
-    /// This function must be called with the pages in the same order as the
-    /// hashes provided in [`PageVerifier::new`], and must only be called as
-    /// many times as there are hashes.
+    /// # Panics
     ///
-    /// On error, the internal cursor isn't advanced, so the next call to
-    /// [`PageVerifier::verify_next_page`] must provide a page for the same
-    /// page index.
-    pub fn verify_next_page(&mut self, page: &Page) -> Result<(), HashTreeStreamError> {
-        assert!(self.current_page < self.hashes.len());
+    /// If provided `page` and `page_index` is not in-bounds.
+    pub fn verify_page(&self, page: &Page, page_index: usize) -> Result<(), HashTreeStreamError> {
+        assert!(page_index < self.hashes.len());
 
-        let expected_hash = self.hashes[self.current_page];
+        let expected_hash = self.hashes[page_index];
         let hash: HashEntry = Sha256::digest(page)[..HASH_ENTRY_LENGTH]
             .try_into()
             .unwrap();
@@ -152,13 +144,11 @@ impl PageVerifier {
         if expected_hash != hash {
             hint::cold_path();
             return Err(HashTreeStreamError::HashMismatch {
-                page_index: self.current_page,
+                page_index,
                 expected: expected_hash,
                 got: hash,
             });
         }
-
-        self.current_page += 1;
 
         Ok(())
     }
@@ -174,6 +164,7 @@ pub struct HashTreeStream<R> {
     next_entry_in_page: usize,
 
     page_verifier: PageVerifier,
+    current_page: usize,
 }
 
 impl<R: AsyncRead> HashTreeStream<R> {
@@ -189,6 +180,7 @@ impl<R: AsyncRead> HashTreeStream<R> {
             remaining_hashes: level_0_hashes,
             next_entry_in_page: 0,
             page_verifier: PageVerifier::new(level_1_hashes),
+            current_page: 0,
         }
     }
 }
@@ -245,7 +237,8 @@ where
         // to calculate the hash here because it's a single hash, so it doesn't
         // block the thread for long.
 
-        this.page_verifier.verify_next_page(buf)?;
+        this.page_verifier.verify_page(buf, *this.current_page)?;
+        *this.current_page += 1;
 
         // Return the first hash of the current page, and set `next_entry_in_page`
         // to 1 so subsequent calls to `poll_next` return the next entries.
@@ -323,22 +316,21 @@ mod tests {
             ],
         ];
 
-        let mut page_verifier = PageVerifier::new(Box::new(hashes));
+        let page_verifier = PageVerifier::new(Box::new(hashes));
 
-        for page in &mut pages {
+        for (i, page) in pages.iter_mut().enumerate() {
             // Place invalid data into the page.
             page[0] = !page[0];
 
-            // Check that the page verification fails. The `PageVerifier` cursor
-            // mustn't be advanced so we can retry the same page later.
-            let err = page_verifier.verify_next_page(page).unwrap_err();
+            // Check that the page verification fails.
+            let err = page_verifier.verify_page(page, i).unwrap_err();
             assert_matches!(err, HashTreeStreamError::HashMismatch { .. });
 
             // Restore the page to its original state.
             page[0] = !page[0];
 
             // Check that now the page verification succeeds.
-            page_verifier.verify_next_page(page).unwrap();
+            page_verifier.verify_page(page, i).unwrap();
         }
     }
 
@@ -348,9 +340,9 @@ mod tests {
         let page = [0u8; PAGE_SIZE];
         let hashes = [[0u8; 24]; 0];
 
-        let mut page_verifier = PageVerifier::new(Box::new(hashes));
+        let page_verifier = PageVerifier::new(Box::new(hashes));
 
         // When running out of hashes, the `PageVerifier` should panic.
-        let _ = page_verifier.verify_next_page(&page);
+        let _ = page_verifier.verify_page(&page, 0);
     }
 }
