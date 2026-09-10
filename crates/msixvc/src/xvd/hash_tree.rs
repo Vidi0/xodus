@@ -15,6 +15,23 @@ use std::task::{Context, Poll, ready};
 type HashEntry = [u8; HASH_ENTRY_LENGTH];
 type Page = [u8; PAGE_SIZE];
 
+#[derive(Debug, Error)]
+pub enum HashTreeStreamError {
+    #[error("IO error: {0}")]
+    Io(#[from] Error),
+
+    #[error(
+        r#"hash mismatch at page {page_index}:
+  expected {expected:?},
+  got {got:?}"#
+    )]
+    HashMismatch {
+        page_index: usize,
+        expected: HashEntry,
+        got: HashEntry,
+    },
+}
+
 /// The `PageVerifier` struct is used to verify the integrity of pages from a
 /// list of hashes.
 ///
@@ -182,23 +199,6 @@ impl<R: AsyncRead> HashTreeStream<R> {
             current_page: 0,
         }
     }
-}
-
-#[derive(Debug, Error)]
-pub enum HashTreeStreamError {
-    #[error("IO error: {0}")]
-    Io(#[from] Error),
-
-    #[error(
-        r#"hash mismatch at page {page_index}:
-  expected {expected:?},
-  got {got:?}"#
-    )]
-    HashMismatch {
-        page_index: usize,
-        expected: HashEntry,
-        got: HashEntry,
-    },
 }
 
 impl<R> Stream for HashTreeStream<R>
