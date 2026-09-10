@@ -169,17 +169,77 @@ impl<R: AsyncRead> PageStream<R> {
     }
 }
 
+/// This struct acts like a [`PageStream<R>`], but verifies the contents of
+/// each page before returning it.
+///
+/// See [`PageStreamVerified::poll_next_page`] for more information.
+#[pin_project]
+struct PageStreamVerified<R> {
+    #[pin]
+    reader: PageStream<R>,
+
+    current_page: usize,
+    page_verifier: PageVerifier,
+}
+
+impl<R: AsyncRead> PageStreamVerified<R> {
+    /// Creates a new [`PageStreamVerified`] that verifies pages against the
+    /// provided `hashes`.
+    pub fn new(reader: R, hashes: Box<[HashEntry]>) -> Self {
+        Self {
+            reader: PageStream::new(reader),
+            current_page: 0,
+            page_verifier: PageVerifier::new(hashes),
+        }
+    }
+
+    /// Returns the last page returned by [`Self::poll_next_page`].
+    ///
+    /// See [`PageStream::buffer`] for more information.
+    pub fn buffer(&self) -> Option<&Page> {
+        self.reader.buffer()
+    }
+
+    /// Attempt to pull out the next page of this stream, registering the
+    /// current task for wakeup if the page is not yet available.
+    ///
+    /// The contents of the page will be verified by comparing its hash with
+    /// the one provided in [`Self::new`] for the current page index. Note that
+    /// this process may block the async thread for a short amount of time.
+    ///
+    /// See [`PageStream::poll_next_page`] for more information.
+    ///
+    /// # Panics
+    ///
+    /// If this function has already returned as many pages as hashes were
+    /// provided in [`Self::new`].
+    pub fn poll_next_page<'a>(
+        self: Pin<&'a mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Result<&'a Page, HashTreeStreamError>> {
+        let this = self.project();
+
+        // Poll the next page.
+        let buf = ready!(this.reader.poll_next_page(cx)?);
+
+        // Check that the hash of the current page is the expected one. It's fine
+        // to calculate the hash here because it's a single hash, so it doesn't
+        // block the thread for long.
+        this.page_verifier.verify_page(buf, *this.current_page)?;
+        *this.current_page += 1;
+
+        Poll::Ready(Ok(buf))
+    }
+}
+
 /// Stream over level 0 hash entries.
 #[pin_project]
 pub struct HashTreeStream<R> {
     #[pin]
-    reader: PageStream<R>,
+    reader: PageStreamVerified<R>,
 
     remaining_hashes: usize,
     next_entry_in_page: usize,
-
-    page_verifier: PageVerifier,
-    current_page: usize,
 }
 
 impl<R: AsyncRead> HashTreeStream<R> {
@@ -191,11 +251,9 @@ impl<R: AsyncRead> HashTreeStream<R> {
         );
 
         Self {
-            reader: PageStream::new(reader),
+            reader: PageStreamVerified::new(reader, level_1_hashes),
             remaining_hashes: level_0_hashes,
             next_entry_in_page: 0,
-            page_verifier: PageVerifier::new(level_1_hashes),
-            current_page: 0,
         }
     }
 }
@@ -227,13 +285,6 @@ where
         }
 
         let buf = ready!(this.reader.poll_next_page(cx)?);
-
-        // Check that the hash of the current page is the expected one. It's fine
-        // to calculate the hash here because it's a single hash, so it doesn't
-        // block the thread for long.
-
-        this.page_verifier.verify_page(buf, *this.current_page)?;
-        *this.current_page += 1;
 
         // Return the first hash of the current page, and set `next_entry_in_page`
         // to 1 so subsequent calls to `poll_next` return the next entries.
