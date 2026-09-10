@@ -10,7 +10,7 @@ use tokio::io::{AsyncRead, ReadBuf};
 use std::hint;
 use std::io::{self, Error, ErrorKind};
 use std::pin::Pin;
-use std::task::{Context, Poll};
+use std::task::{Context, Poll, ready};
 
 type HashEntry = [u8; HASH_ENTRY_LENGTH];
 type Page = [u8; PAGE_SIZE];
@@ -129,17 +129,16 @@ impl<R: AsyncRead> PageStream<R> {
             // `buf` contains the unfilled portion of the buffer.
             let mut buf = ReadBuf::new(&mut this.buf[*this.filled..]);
 
-            match this.reader.as_mut().poll_read(cx, &mut buf) {
-                Poll::Pending => return Poll::Pending,
-                Poll::Ready(Err(e)) if let ErrorKind::Interrupted = e.kind() => {}
-                Poll::Ready(Err(e)) => return Poll::Ready(Err(e)),
-                Poll::Ready(Ok(())) if buf.filled().is_empty() => {
+            match ready!(this.reader.as_mut().poll_read(cx, &mut buf)) {
+                Err(e) if let ErrorKind::Interrupted = e.kind() => {}
+                Err(e) => return Poll::Ready(Err(e)),
+                Ok(()) if buf.filled().is_empty() => {
                     return Poll::Ready(Err(Error::new(
                         ErrorKind::UnexpectedEof,
                         "failed to fill whole buffer",
                     )));
                 }
-                Poll::Ready(Ok(())) => *this.filled += buf.filled().len(),
+                Ok(()) => *this.filled += buf.filled().len(),
             }
         }
 
@@ -228,10 +227,7 @@ where
             return Poll::Ready(Some(Ok(*hash)));
         }
 
-        let buf = match this.reader.poll_next_page(cx)? {
-            Poll::Pending => return Poll::Pending,
-            Poll::Ready(buf) => buf,
-        };
+        let buf = ready!(this.reader.poll_next_page(cx)?);
 
         // Check that the hash of the current page is the expected one. It's fine
         // to calculate the hash here because it's a single hash, so it doesn't
