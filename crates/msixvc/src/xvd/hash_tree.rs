@@ -103,7 +103,6 @@ impl<R: AsyncRead> PageStream<R> {
     /// Returns `None` before the first call to [`Self::poll_next_page`], and
     /// after a call that returned [`Poll::Pending`] or an error. This function
     /// returns the same page until the next call to [`Self::poll_next_page`].
-    #[inline]
     pub fn buffer(&self) -> Option<&Page> {
         (self.filled == PAGE_SIZE).then_some(&self.buf)
     }
