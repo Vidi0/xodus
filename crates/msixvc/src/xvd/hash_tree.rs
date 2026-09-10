@@ -58,8 +58,8 @@ impl PageVerifier {
         assert!(page_index < self.hashes.len());
 
         let expected_hash = self.hashes[page_index];
-        let hash: HashEntry = Sha256::digest(page)[..HASH_ENTRY_LENGTH]
-            .try_into()
+        let hash: HashEntry = *Sha256::digest(page)
+            .first_chunk::<HASH_ENTRY_LENGTH>()
             .unwrap();
 
         if expected_hash != hash {
