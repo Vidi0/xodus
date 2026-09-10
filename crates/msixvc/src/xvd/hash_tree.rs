@@ -15,6 +15,49 @@ use std::task::{Context, Poll};
 type HashEntry = [u8; HASH_ENTRY_LENGTH];
 type Page = [u8; PAGE_SIZE];
 
+/// The `PageVerifier` struct is used to verify the integrity of pages from a
+/// list of hashes.
+///
+/// The hashes must be allocated in memory, so this struct cannot be used if
+/// the hashes are not in memory yet. If the hashes have to be read from an
+/// [`AsyncRead`]er, see [`HashTreeStream`] for parsing a hash table into an
+/// async [`Stream`] of hashes.
+struct PageVerifier {
+    hashes: Box<[HashEntry]>,
+}
+
+impl PageVerifier {
+    /// Creates a new [`PageVerifier`] with a list of hashes.
+    pub fn new(hashes: Box<[HashEntry]>) -> Self {
+        Self { hashes }
+    }
+
+    /// Verifies that the provided `page` is intact.
+    ///
+    /// # Panics
+    ///
+    /// If provided `page` and `page_index` is not in-bounds.
+    pub fn verify_page(&self, page: &Page, page_index: usize) -> Result<(), HashTreeStreamError> {
+        assert!(page_index < self.hashes.len());
+
+        let expected_hash = self.hashes[page_index];
+        let hash: HashEntry = Sha256::digest(page)[..HASH_ENTRY_LENGTH]
+            .try_into()
+            .unwrap();
+
+        if expected_hash != hash {
+            hint::cold_path();
+            return Err(HashTreeStreamError::HashMismatch {
+                page_index,
+                expected: expected_hash,
+                got: hash,
+            });
+        }
+
+        Ok(())
+    }
+}
+
 /// The `PageStream<R>` struct wraps an asynchronous reader and yields data
 /// one page at a time.
 ///
@@ -108,49 +151,6 @@ impl<R: AsyncRead> PageStream<R> {
         // `poll_next_page` will clear the buffer in order to start a new poll.
 
         Poll::Ready(Ok(this.buf))
-    }
-}
-
-/// The `PageVerifier` struct is used to verify the integrity of pages from a
-/// list of hashes.
-///
-/// The hashes must be allocated in memory, so this struct cannot be used if
-/// the hashes are not in memory yet. If the hashes have to be read from an
-/// [`AsyncRead`]er, see [`HashTreeStream`] for parsing a hash table into an
-/// async [`Stream`] of hashes.
-struct PageVerifier {
-    hashes: Box<[HashEntry]>,
-}
-
-impl PageVerifier {
-    /// Creates a new [`PageVerifier`] with a list of hashes.
-    pub fn new(hashes: Box<[HashEntry]>) -> Self {
-        Self { hashes }
-    }
-
-    /// Verifies that the provided `page` is intact.
-    ///
-    /// # Panics
-    ///
-    /// If provided `page` and `page_index` is not in-bounds.
-    pub fn verify_page(&self, page: &Page, page_index: usize) -> Result<(), HashTreeStreamError> {
-        assert!(page_index < self.hashes.len());
-
-        let expected_hash = self.hashes[page_index];
-        let hash: HashEntry = Sha256::digest(page)[..HASH_ENTRY_LENGTH]
-            .try_into()
-            .unwrap();
-
-        if expected_hash != hash {
-            hint::cold_path();
-            return Err(HashTreeStreamError::HashMismatch {
-                page_index,
-                expected: expected_hash,
-                got: hash,
-            });
-        }
-
-        Ok(())
     }
 }
 
@@ -260,42 +260,6 @@ mod tests {
     use std::task::Waker;
 
     #[test]
-    fn test_page_stream() {
-        // Fill a buffer with test data.
-        let test_data: [u8; PAGE_SIZE * 3 + 84] = std::array::from_fn(|i| {
-            // Make sure that the first `u8::MAX` pages are all different.
-            let page = i / PAGE_SIZE;
-            (page as u8).wrapping_add(i as u8)
-        });
-
-        // Create a `PageStream` over the test data.
-        let mut page_stream = pin!(PageStream::new(Cursor::new(&test_data)));
-        let mut cx = Context::from_waker(Waker::noop());
-
-        assert_eq!(page_stream.buffer(), None);
-
-        // For each full page in `test_data`, check that `PageStream` returns
-        // exactly the same data.
-        for chunk in test_data.as_chunks::<PAGE_SIZE>().0 {
-            let Poll::Ready(Ok(buf)) = page_stream.as_mut().poll_next_page(&mut cx) else {
-                unreachable!("An in-memory Cursor mustn't block nor fail");
-            };
-
-            assert_eq!(buf, chunk);
-            assert_eq!(page_stream.buffer(), Some(chunk));
-        }
-
-        // After we've consumed every full page, the stream must return an
-        // `io::ErrorKind::UnexpectedEof` error.
-        let Poll::Ready(Err(e)) = page_stream.as_mut().poll_next_page(&mut cx) else {
-            unreachable!("After consuming all the pages, it must return an error");
-        };
-
-        assert_eq!(e.kind(), io::ErrorKind::UnexpectedEof);
-        assert_eq!(page_stream.buffer(), None);
-    }
-
-    #[test]
     fn test_page_verifier() {
         let mut pages = [[0u8; PAGE_SIZE], [1u8; PAGE_SIZE], [2u8; PAGE_SIZE]];
         let hashes = [
@@ -344,5 +308,41 @@ mod tests {
 
         // When running out of hashes, the `PageVerifier` should panic.
         let _ = page_verifier.verify_page(&page, 0);
+    }
+
+    #[test]
+    fn test_page_stream() {
+        // Fill a buffer with test data.
+        let test_data: [u8; PAGE_SIZE * 3 + 84] = std::array::from_fn(|i| {
+            // Make sure that the first `u8::MAX` pages are all different.
+            let page = i / PAGE_SIZE;
+            (page as u8).wrapping_add(i as u8)
+        });
+
+        // Create a `PageStream` over the test data.
+        let mut page_stream = pin!(PageStream::new(Cursor::new(&test_data)));
+        let mut cx = Context::from_waker(Waker::noop());
+
+        assert_eq!(page_stream.buffer(), None);
+
+        // For each full page in `test_data`, check that `PageStream` returns
+        // exactly the same data.
+        for chunk in test_data.as_chunks::<PAGE_SIZE>().0 {
+            let Poll::Ready(Ok(buf)) = page_stream.as_mut().poll_next_page(&mut cx) else {
+                unreachable!("An in-memory Cursor mustn't block nor fail");
+            };
+
+            assert_eq!(buf, chunk);
+            assert_eq!(page_stream.buffer(), Some(chunk));
+        }
+
+        // After we've consumed every full page, the stream must return an
+        // `io::ErrorKind::UnexpectedEof` error.
+        let Poll::Ready(Err(e)) = page_stream.as_mut().poll_next_page(&mut cx) else {
+            unreachable!("After consuming all the pages, it must return an error");
+        };
+
+        assert_eq!(e.kind(), io::ErrorKind::UnexpectedEof);
+        assert_eq!(page_stream.buffer(), None);
     }
 }
