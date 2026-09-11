@@ -44,7 +44,6 @@ struct PageVerifier {
 }
 
 impl PageVerifier {
-    /// Creates a new [`PageVerifier`] with a list of hashes.
     pub fn new(hashes: Box<[HashEntry]>) -> Self {
         Self { hashes }
     }
@@ -89,7 +88,6 @@ struct PageStream<R> {
 }
 
 impl<R: AsyncRead> PageStream<R> {
-    /// Creates a new [`PageStream<R>`] that wraps over a reader.
     pub fn new(reader: R) -> Self {
         Self {
             reader,
@@ -183,8 +181,6 @@ struct PageStreamVerified<R> {
 }
 
 impl<R: AsyncRead> PageStreamVerified<R> {
-    /// Creates a new [`PageStreamVerified`] that verifies pages against the
-    /// provided `hashes`.
     pub fn new(reader: R, hashes: Box<[HashEntry]>) -> Self {
         Self {
             reader: PageStream::new(reader),
