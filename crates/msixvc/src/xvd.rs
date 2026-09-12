@@ -1,5 +1,3 @@
-mod hash_tree;
-
 use std::cmp::min;
 use std::collections::HashMap;
 use std::fmt::Debug;

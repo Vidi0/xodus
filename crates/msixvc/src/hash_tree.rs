@@ -181,7 +181,6 @@ pub struct HashTreeStream<R> {
 }
 
 impl<R: AsyncRead> HashTreeStream<R> {
-    #[expect(dead_code)]
     pub fn new(reader: R, level_1_hashes: Box<[HashEntry]>, level_0_hashes: usize) -> Self {
         assert_eq!(
             level_0_hashes.div_ceil(HASH_ENTRIES_IN_PAGE as usize),
