@@ -16,20 +16,24 @@ type HashEntry = [u8; HASH_ENTRY_LENGTH];
 type Page = [u8; PAGE_SIZE];
 
 #[derive(Debug, Error)]
+#[error(
+    r#"hash mismatch at page {page_index}:
+  expected {expected:?},
+  got {got:?}"#
+)]
+pub struct HashMismatch {
+    page_index: usize,
+    expected: HashEntry,
+    got: HashEntry,
+}
+
+#[derive(Debug, Error)]
 pub enum HashTreeStreamError {
     #[error("IO error: {0}")]
     Io(#[from] Error),
 
-    #[error(
-        r#"hash mismatch at page {page_index}:
-  expected {expected:?},
-  got {got:?}"#
-    )]
-    HashMismatch {
-        page_index: usize,
-        expected: HashEntry,
-        got: HashEntry,
-    },
+    #[error(transparent)]
+    HashMismatch(#[from] HashMismatch),
 }
 
 /// The `PageVerifier` struct is used to verify the integrity of pages from a
@@ -53,7 +57,7 @@ impl PageVerifier {
     /// # Panics
     ///
     /// If provided `page` and `page_index` is not in-bounds.
-    pub fn verify_page(&self, page: &Page, page_index: usize) -> Result<(), HashTreeStreamError> {
+    pub fn verify_page(&self, page: &Page, page_index: usize) -> Result<(), HashMismatch> {
         assert!(page_index < self.hashes.len());
 
         let expected_hash = self.hashes[page_index];
@@ -63,7 +67,7 @@ impl PageVerifier {
 
         if expected_hash != hash {
             hint::cold_path();
-            return Err(HashTreeStreamError::HashMismatch {
+            return Err(HashMismatch {
                 page_index,
                 expected: expected_hash,
                 got: hash,
@@ -250,7 +254,6 @@ where
 mod tests {
     use super::*;
 
-    use std::assert_matches;
     use std::io::Cursor;
     use std::pin::pin;
     use std::task::Waker;
@@ -284,7 +287,8 @@ mod tests {
 
             // Check that the page verification fails.
             let err = page_verifier.verify_page(page, i).unwrap_err();
-            assert_matches!(err, HashTreeStreamError::HashMismatch { .. });
+            assert_eq!(err.page_index, i);
+            assert_eq!(err.expected, hashes[i]);
 
             // Restore the page to its original state.
             page[0] = !page[0];
