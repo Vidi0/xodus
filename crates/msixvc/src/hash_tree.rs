@@ -240,6 +240,10 @@ where
 
         Poll::Ready(Some(Ok(*buf.first_chunk::<HASH_ENTRY_LENGTH>().unwrap())))
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (0, Some(self.remaining_hashes))
+    }
 }
 
 #[cfg(test)]
