@@ -171,7 +171,13 @@ impl<R: AsyncRead> PageStream<R> {
     }
 }
 
-/// Stream over level 0 hash entries.
+/// Stream over level 0 hash tree entries.
+///
+/// This struct wraps an [`AsyncRead`]er over the level 0 hash tree and returns
+/// a [`Stream`] of hash entries. The hash tree is fetched page by page, and
+/// each page is hashed and verified against the corresponding hash provided in
+/// [`HashTreeStream::new`]. Because this struct already pulls data in pages,
+/// the underlying reader doesn't need to be buffered.
 #[pin_project]
 pub struct HashTreeStream<R> {
     #[pin]
@@ -185,6 +191,11 @@ pub struct HashTreeStream<R> {
 }
 
 impl<R: AsyncRead> HashTreeStream<R> {
+    /// Creates a new [`HashTreeStream`].
+    ///
+    /// # Panics
+    ///
+    /// If `level_0_hashes` doesn't fit exactly into `level_1_hashes.len()` pages.
     pub fn new(reader: R, level_1_hashes: Box<[HashEntry]>, level_0_hashes: usize) -> Self {
         assert_eq!(
             level_0_hashes.div_ceil(HASH_ENTRIES_IN_PAGE as usize),
