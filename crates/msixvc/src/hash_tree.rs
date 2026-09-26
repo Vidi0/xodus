@@ -15,6 +15,14 @@ use std::task::{Context, Poll, ready};
 type HashEntry = [u8; HASH_ENTRY_LENGTH];
 type Page = [u8; PAGE_SIZE];
 
+/// Splits a HashTree's [`Page`] into its hash entries.
+fn page_as_entries(page: &Page) -> &[HashEntry; HASH_ENTRIES_IN_PAGE as usize] {
+    page.as_chunks::<HASH_ENTRY_LENGTH>()
+        .0
+        .try_into()
+        .expect("obtaining 170 24-byte hash entries from a 4096-byte page is infallible")
+}
+
 #[derive(Debug, Error)]
 #[error(
     r#"hash mismatch at page {page_index}:
@@ -228,10 +236,7 @@ where
         // If there are remaining hash entries in the buffer that have not been
         // returned, then return the next one and advance the counter.
         if let Some(buf) = this.reader.buffer()
-            && let Some(hash) = buf
-                .as_chunks::<HASH_ENTRY_LENGTH>()
-                .0
-                .get(*this.next_entry_in_page)
+            && let Some(hash) = page_as_entries(buf).get(*this.next_entry_in_page)
         {
             *this.remaining_hashes -= 1;
             *this.next_entry_in_page += 1;
@@ -253,9 +258,7 @@ where
         *this.remaining_hashes -= 1;
         *this.next_entry_in_page = 1;
 
-        Poll::Ready(Some(Ok(*buf.first_chunk::<HASH_ENTRY_LENGTH>().expect(
-            "obtaining the first 24 bytes from a 4096-byte page is infallible",
-        ))))
+        Poll::Ready(Some(Ok(page_as_entries(buf)[0])))
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
