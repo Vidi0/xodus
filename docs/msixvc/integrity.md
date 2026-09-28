@@ -30,12 +30,13 @@ tree, and each level verifies the one below it. Since Level 0 verifies the
 actual data, everything following the hash tree is ultimately verified by a
 single hash in the header.
 
-Entries from different levels of the hash tree are never stored on the same
-page. Instead, the last page of each level may be padded with zero bytes. The
-levels are stored in order, starting with the topmost level and ending with
-level 0. MSIXVC packages may have up to 4 hash tree levels, but they could have
-fewer because additional levels are only created if a level spans more than one
-page.
+Because each hash corresponds to exactly one page, and the hashes of the pages
+of each tree level are needed in order to compute the level above it, entries
+from different levels of the hash tree are never stored on the same page.
+Instead, the last page of each level may be padded with zeroes. The levels are
+stored in order, starting with the topmost level and ending with level 0.
+MSIXVC packages may have up to 4 hash tree levels, but they could have fewer
+because additional levels are only created if a level spans more than one page.
 
 The size of the hash tree section is not stored in the header. Instead, its
 size is calculated based on the number of pages it covers. Each page of the
