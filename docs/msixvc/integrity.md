@@ -72,4 +72,6 @@ to verify the rest of the package. The only sections that aren't verified are
 the `Embedded XVD` and the `Mutable Data` sections (those between the header
 and the hash tree).
 
-The signature is produced using Microsoft's private key.
+The signature is typically generated using Microsoft's private key. However,
+unofficial packages might be signed with different keys. Trust in a package
+depends on the trust placed in the corresponding public key.
