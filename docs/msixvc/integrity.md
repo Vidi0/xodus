@@ -9,11 +9,12 @@ signature, respectively.
 ### Hash Tree
 
 Following the `Mutable Data` section in the MSIXVC package is the `Hash Tree`
-section. This section contains a Merkle hash tree which covers all the
-remaining pages of the package. Each page of the hash tree contains up to 170
-24-byte entries, which are truncated SHA-256 hashes.[^1] Each entry verifies a
-single page worth of data. Because 4096 is not a multiple of 24, the final 16
-bytes of each page are filled with zeroes.
+section. This section contains a Merkle hash tree which can be used to verify
+the integrity of all the remaining pages of the package. Each page of the hash
+tree contains up to 170 24-byte entries, which are truncated SHA-256
+hashes.[^1] Because 4096 is not a multiple of 24, the final 16 bytes of each
+page are filled with zeroes. Each hash is calculated from a page of data
+(4096 bytes).
 
 [^1]:
     Level 0 hash entries that point to encrypted data are also 24 bytes long,
