@@ -69,6 +69,6 @@ Before the header, every MSIXVC package starts with a 512-byte RSA signature,
 which signs the header. Because the header contains the hash of the topmost
 tree level, verifying the header also checks the rest of the package. The only
 sections that aren't verified are the `Embedded XVD` and the `Mutable Data`
-sections.
+sections (those between the header and the hash tree).
 
 The header is signed with Microsoft's private key.
