@@ -21,22 +21,25 @@ Each hash is calculated from a page of data (4096 bytes).
     but the SHA-256 hash is truncated further to 20 bytes in order to make room
     for the 4-byte `data unit`. See [encryption](./encryption.md).
 
-The hash tree is divided into multiple levels. Level 0 contains the hashes of
-the actual data pages, and each subsequent level contains the hashes of the
-pages from the level below it. The topmost level of the tree fits into a single
-page, and its hash is stored directly in the header. Thus, a chain of trust is
-established: the hash stored in the header verifies the topmost level of the
-tree, and each level verifies the one below it. Since Level 0 verifies the
-actual data, everything following the hash tree is ultimately verified by a
-single hash in the header.
+The hash tree is split into multiple levels. A hash tree level is a contiguous
+sequence of pages of the hash tree that verify a contiguous region of pages:
+the n-th entry of a level verifies the n-th page of the region. As the number
+of entries in a level is not necessarily a multiple of 170, the last page of
+each level may be padded with zeroes.
 
-Because each hash corresponds to exactly one page, and the hashes of the pages
-of each tree level are needed in order to compute the level above it, entries
-from different levels of the hash tree are never stored on the same page.
-Instead, the last page of each level may be padded with zeroes. The levels are
-stored in order, starting with the topmost level and ending with level 0.
-MSIXVC packages may have up to 4 hash tree levels, but they could have fewer
-because additional levels are only created if a level spans more than one page.
+The levels in the hash tree act as layers: level 0 verifies the actual data,
+and then each subsequent level verifies the level below it. Therefore, each
+level is approximately 170 times smaller than the one below it. The topmost
+level of the tree fits into a single page, and its hash is stored directly in
+the header. Thus, a chain of trust is established: the hash stored in the
+header verifies the topmost level of the tree, and each level verifies the one
+below it. Since level 0 verifies the actual data, everything following the hash
+tree is ultimately verified by a single hash in the header.
+
+The levels are stored in order, starting with the topmost level and ending with
+level 0. MSIXVC packages may have up to 4 hash tree levels, but they could have
+fewer because additional levels are only created if a level spans more than one
+page.
 
 The size of the hash tree section is not stored in the header. Instead, its
 size is calculated based on the number of pages it covers. Each page of the
