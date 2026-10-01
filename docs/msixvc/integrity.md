@@ -38,7 +38,7 @@ tree is ultimately verified by a single hash in the header.
 
 The levels are stored in order, starting with the topmost level and ending with
 level 0. MSIXVC packages may have up to 4 hash tree levels, but they could have
-fewer because additional levels are only created if a level spans more than one
+fewer because levels stop being added once the topmost one fits into a single
 page.
 
 The size of the hash tree section is not stored in the header. Instead, its
