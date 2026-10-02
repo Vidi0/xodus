@@ -19,7 +19,8 @@ Each hash is calculated from a page of data (4096 bytes).[^2]
 [^1]:
     Level 0 hash entries that point to encrypted data are also 24 bytes long,
     but the SHA-256 hash is truncated further to 20 bytes in order to make room
-    for the 4-byte `data unit`. See [encryption](./encryption.md).
+    for the 4-byte `data unit`. See
+    [encryption](./encryption.md#region-encryption).
 
 [^2]:
     For encrypted regions, the hash covers the ciphertext, so the package can
