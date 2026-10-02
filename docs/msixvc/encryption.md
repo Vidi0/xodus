@@ -38,7 +38,9 @@ tree.[^2]
 
 [^2]:
     Due to the jumps, some data units are repeated, causing some pages to share
-    a tweak. This is intended to improve compression ratios.
+    a tweak. Identical plaintext pages then produce identical ciphertext, which
+    is intended "to enable content updates to be distributed as ciphertext-only
+    deltas and to support efficient block-level deduplication".
 
 ### Page Encryption
 
