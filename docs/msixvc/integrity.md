@@ -14,12 +14,16 @@ the integrity of all the remaining pages of the package (the `User Data`,
 `XVC Info` and `Drive Data` sections). Each page of the hash tree contains up
 to 170 24-byte entries, which are truncated SHA-256 hashes.[^1] Because 4096 is
 not a multiple of 24, the final 16 bytes of each page are filled with zeroes.
-Each hash is calculated from a page of data (4096 bytes).
+Each hash is calculated from a page of data (4096 bytes).[^2]
 
 [^1]:
     Level 0 hash entries that point to encrypted data are also 24 bytes long,
     but the SHA-256 hash is truncated further to 20 bytes in order to make room
     for the 4-byte `data unit`. See [encryption](./encryption.md).
+
+[^2]:
+    For encrypted regions, the hash covers the ciphertext, so the package can
+    be verified without the decryption key.
 
 The hash tree is split into multiple levels. A hash tree level is a contiguous
 sequence of pages of the hash tree that verify a contiguous region of pages:
@@ -46,9 +50,9 @@ size is calculated based on the number of pages it covers. Each page of the
 hash tree covers 170 pages. Therefore, each level occupies exactly `⌈N / 170⌉`
 pages, where `N` is the number of pages of either the actual data or the level
 below it. The total number of pages occupied by the hash tree is the sum of
-every level's size.[^2]
+every level's size.[^3]
 
-[^2]:
+[^3]:
     This total can be approximated as `⌈D / (170 - 1)⌉` pages, where `D` is the
     number of data pages. This approximation is not exact because each level is
     rounded up to a whole page, whereas the approximation uses fractional
