@@ -44,20 +44,22 @@ tree.[^2]
 
 ### Page Encryption
 
-To encrypt or decrypt a page, the tweak, tweak key and data key are required. A
-page is encrypted with XTS-AES as 256 consecutive 16-byte blocks.
+In order to encrypt or decrypt a page, the tweak, the tweak key and the data
+key are required. A page is encrypted with XTS-AES as 256 consecutive 16-byte
+blocks.
 
 First, the 16-byte tweak is encrypted with AES-128 using the tweak key to
 produce the initial value `T`. For each subsequent block, `T` is treated as a
 little-endian value and multiplied by `x` in the Galois field GF(2¹²⁸) modulo
 the irreducible polynomial `x¹²⁸ + x⁷ + x² + x + 1`. This ensures that each
 block gets its own unique `T`. The sequence of `T` values is always derived
-with AES encryption of the tweak, for both encryption and decryption.
+via AES encryption of the tweak, for both encryption and decryption.
 
-Each 16-byte block is then transformed as `out = transform(in ⊕ T) ⊕ T`, where
-`transform` is defined as:
+Each 16-byte block is then processed with the data key and the corresponding
+value of `T`. The encryption and decryption processes share the same structure,
+differing only in the AES operation applied to the block.
 
-- AES-128 encryption with the data key, to encrypt.
-- AES-128 decryption with the data key, to decrypt.
+- Encryption: `C = AES_enc(P ⊕ T) ⊕ T`
+- Decryption: `P = AES_dec(C ⊕ T) ⊕ T`
 
 As the page size is a multiple of 16 bytes, ciphertext stealing is not needed.
