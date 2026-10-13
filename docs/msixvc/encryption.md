@@ -49,9 +49,10 @@ page is encrypted with XTS-AES as 256 consecutive 16-byte blocks.
 
 First, the 16-byte tweak is encrypted with AES-128 using the tweak key to
 produce the initial value `T`. For each subsequent block, `T` is treated as a
-little-endian value and multiplied by `x` in the Galois Field GF(2¹²⁸) modulo
-the irreducible polynomial `x¹²⁸ + x⁷ + x² + x + 1`, ensuring that each block
-gets its own unique `T`.
+little-endian value and multiplied by `x` in the Galois field GF(2¹²⁸) modulo
+the irreducible polynomial `x¹²⁸ + x⁷ + x² + x + 1`. This ensures that each
+block gets its own unique `T` value. The sequence of `T` values is always
+derived with AES encryption of the tweak, for both encryption and decryption.
 
 Each 16-byte block is then transformed as `out = transform(in ⊕ T) ⊕ T`, where
 `transform` is defined as:
@@ -59,6 +60,4 @@ Each 16-byte block is then transformed as `out = transform(in ⊕ T) ⊕ T`, whe
 - AES-128 encryption with the data key, to encrypt.
 - AES-128 decryption with the data key, to decrypt.
 
-The sequence of `T` tweak values is always derived with AES encryption of the
-tweak, for both encryption and decryption. As the page size is a multiple of 16
-bytes, ciphertext stealing is not needed.
+As the page size is a multiple of 16 bytes, ciphertext stealing is not needed.
