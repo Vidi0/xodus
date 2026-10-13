@@ -61,5 +61,3 @@ differing only in the AES operation applied to the block.
 
 - Encryption: `C = AES_enc(P ⊕ T) ⊕ T`
 - Decryption: `P = AES_dec(C ⊕ T) ⊕ T`
-
-As the page size is a multiple of 16 bytes, ciphertext stealing is not needed.
