@@ -5,6 +5,7 @@ members = [
     "crates/xodus-service",
     "crates/xodus-cli",
     "crates/msixvc",
+    "crates/msixvc-new",
     "crates/msixvc-common",
 ]
 
