@@ -13,11 +13,12 @@ members = [
 rust-version = "1.98.0"
 
 [workspace.dependencies]
-base64 = { version = "0.23.1" }
+base64 = "0.23.1"
 chrono = "0.4.45"
 reqwest = { version = "0.13.4", features = ["json", "stream"] }
 thiserror = "2.0.20"
 tokio = { version = "1.53.1", features = ["full", "tracing"] }
+typenum = { version = "1.20.1", features = ["const-generics"] }
 uuid = "1.25.0"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
