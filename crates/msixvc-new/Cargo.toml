@@ -5,3 +5,11 @@ edition = "2024"
 rust-version = { workspace = true }
 
 [dependencies]
+msixvc-common = { path = "../msixvc-common" }
+
+chrono = { workspace = true }
+thiserror = { workspace = true }
+typenum = { workspace = true }
+uuid = { workspace = true }
+bitflags = "2.13.1"
+num_enum = "0.7.6"
