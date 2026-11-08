@@ -3501,6 +3501,15 @@ dependencies = [
 [[package]]
 name = "msixvc-new"
 version = "0.1.0"
+dependencies = [
+ "bitflags 2.13.1",
+ "chrono",
+ "msixvc-common",
+ "num_enum",
+ "thiserror 2.0.20",
+ "typenum",
+ "uuid",
+]
 
 [[package]]
 name = "multimap"
