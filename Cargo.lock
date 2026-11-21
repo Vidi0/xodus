@@ -3507,6 +3507,7 @@ dependencies = [
  "msixvc-common",
  "num_enum",
  "thiserror 2.0.20",
+ "tokio",
  "typenum",
  "uuid",
 ]

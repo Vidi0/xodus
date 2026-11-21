@@ -9,6 +9,7 @@ msixvc-common = { path = "../msixvc-common" }
 
 chrono = { workspace = true }
 thiserror = { workspace = true }
+tokio = { workspace = true }
 typenum = { workspace = true }
 uuid = { workspace = true }
 bitflags = "2.13.1"
