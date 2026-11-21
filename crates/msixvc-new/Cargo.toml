@@ -14,3 +14,4 @@ typenum = { workspace = true }
 uuid = { workspace = true }
 bitflags = "2.13.1"
 num_enum = "0.7.6"
+rsa = "0.10.0"
