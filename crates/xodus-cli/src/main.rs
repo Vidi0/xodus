@@ -83,6 +83,10 @@ enum SubCommand {
     SpLicense {
         block: String,
     },
+    /// WIP
+    Msixvc {
+        path: String,
+    },
 }
 
 #[derive(Subcommand)]
@@ -229,6 +233,7 @@ async fn main() -> ExitCode {
             ClepAction::Decrypt { data } => commands::clep::decrypt(data),
         },
         SubCommand::SpLicense { block } => commands::splicense::run(block),
+        SubCommand::Msixvc { path } => commands::msixvc::run(path).await,
     };
 
     xodus::secrets::destroy_secrets();
